@@ -1,0 +1,41 @@
+
+.tab .tab-label {
+    -fx-text-overflow: ellipsis; /* 文本溢出时显示省略号 */
+    -fx-overflow: hidden; /* 隐藏溢出的内容 */
+    -fx-white-space: nowrap; /* 禁止文本换行 */
+    -fx-max-width: 10px; /* 设置标签最大宽度，超出部分会触发截断 */
+}
+
+.table-view .scroll-bar:vertical {
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+    -fx-padding: -1; /* 可选，确保不占空间 */
+}
+
+.list-view .scroll-bar:horizontal {
+    -fx-pref-width: 0;
+    -fx-opacity: 0;
+    -fx-visibility: hidden;
+}
+
+.dialog-pane .label {
+    -fx-padding: 0 0 10px 0;
+}
+
+/*
+* ServerInfo Tab Cards
+*/
+.card .label {
+    /*-fx-text-fill: red;*/
+}
+
+.card .important_info {
+    /* https://mkpaz.github.io/atlantafx/reference/global-colors/ */
+    -fx-text-fill: -color-success-5;
+    /*-fx-font-weight: bolder;*/
+}
+
+/*
+* ServerInfo Tab Cards END
+*/
