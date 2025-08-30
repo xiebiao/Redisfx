@@ -19,7 +19,6 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-import lombok.Getter;
 import org.slf4j.Logger;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -32,7 +31,6 @@ import java.util.*;
  * @author Bill Xie
  * @since 2025/8/13 23:49
  **/
-@Getter
 public class ConnectionTitledPane implements LifeCycle {
     private static Logger logger = org.slf4j.LoggerFactory.getLogger(ConnectionTitledPane.class);
     private JedisPool jedisPool;
@@ -79,9 +77,7 @@ public class ConnectionTitledPane implements LifeCycle {
         connectionTitledPane = new TitledPane();
         connectionTitledPane.getStyleClass().add(Styles.DENSE);
         connectionTitledPane.setText(redisConnectionInfo.connectionName());
-
         connectionTitledPane.setCollapsible(true);
-        //默认不展开
         connectionTitledPane.setExpanded(false);
         connectionTitledPane.setId(redisConnectionInfo.connectionName());
         connectionTitledPane.setGraphic(createConnectionMenuButton());

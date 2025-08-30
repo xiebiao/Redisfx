@@ -75,6 +75,7 @@ public class KeyTabView {
             key.setDisable(false);
             key.setText(null);
             value.setText(null);
+            keyTypes.setDisable(false);
             boolean isKeyInfoTabAdded = tabPane.getTabs().stream().anyMatch(tab -> tab.getId().equals(Constants.keyInfoTabId));
             if (!isKeyInfoTabAdded) {
                 tabPane.getTabs().add(keyTab);
@@ -85,7 +86,7 @@ public class KeyTabView {
             if (keyTab == null) {
                 keyTab = create((String) eventMessasge.getData());
             } else {
-                keyTab.setText(connectionName + " | " + (String) eventMessasge.getData());
+                keyTab.setText(connectionName + " | " + eventMessasge.getData());
             }
             key.setDisable(true);
             boolean isKeyTabAdded = tabPane.getTabs().stream().anyMatch(tab -> tab.getId().equals(Constants.keyInfoTabId));
@@ -95,6 +96,7 @@ public class KeyTabView {
             String selectedKey = (String) eventMessasge.getData();
             String keyType = jedis.type(selectedKey);
             keyTypes.getSelectionModel().select(keyType);
+            keyTypes.setDisable(true);
             key.setText(selectedKey);
             //TODO support other key types
             String selectedKeyValue = jedis.get(selectedKey);

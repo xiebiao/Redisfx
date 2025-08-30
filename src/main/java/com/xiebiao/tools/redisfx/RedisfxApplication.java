@@ -3,6 +3,7 @@ package com.xiebiao.tools.redisfx;
 import atlantafx.base.theme.PrimerLight;
 import com.xiebiao.tools.redisfx.controller.MainController;
 import com.xiebiao.tools.redisfx.utils.Constants;
+import java.util.Locale;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -50,6 +51,8 @@ public class RedisfxApplication extends Application {
     }
 
     public static void main(String[] args) {
+        //TODO i18n
+        Locale.setDefault(new Locale("en", "en_US"));
         launch();
     }
 }

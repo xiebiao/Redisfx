@@ -20,6 +20,7 @@ public abstract class Constants {
     public static final String NEW_KEY_TITLE = "New Key";
     public static final int spacing_10 = 10;
     public static final int spacing_20 = 20;
+    public static final int spacing_40 = 40;
     public static final String AUTO_REFRESH_ENABLED = "Auto Refresh Enabled";
     public static final String AUTO_REFRESH_DISABLED = "Auto Refresh Disabled";
 }

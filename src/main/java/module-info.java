@@ -5,7 +5,6 @@ module com.xiebiao.tools.redisfx {
     requires com.google.common;
     requires redis.clients.jedis;
     requires java.desktop;
-    requires static lombok;
     requires org.checkerframework.checker.qual;
     requires org.slf4j;
     requires java.management;
@@ -17,6 +16,7 @@ module com.xiebiao.tools.redisfx {
 
     opens com.xiebiao.tools.redisfx to javafx.fxml;
     exports com.xiebiao.tools.redisfx;
+    exports com.xiebiao.tools.redisfx.model;
     exports com.xiebiao.tools.redisfx.view;
     exports com.xiebiao.tools.redisfx.service.eventbus ;
     exports com.xiebiao.tools.redisfx.controller;
