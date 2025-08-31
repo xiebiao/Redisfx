@@ -10,6 +10,7 @@ import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventBusService;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventMessasge;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventType;
 import com.xiebiao.tools.redisfx.utils.Constants;
+import com.xiebiao.tools.redisfx.utils.Icons;
 import com.xiebiao.tools.redisfx.view.ConnectionTitledPane;
 import com.xiebiao.tools.redisfx.view.MemoryMonitorView;
 import javafx.application.Application;
@@ -32,7 +33,6 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.material2.Material2AL;
 import org.slf4j.Logger;
 
 import java.awt.*;
@@ -133,7 +133,7 @@ public class MainController implements Initializable {
     private void initTheme() {
         themeMenu.getItems().forEach(menuItem -> menuItem.setOnAction(themeChangeEventHandler));
         Application.setUserAgentStylesheet(this.primerLightTheme.getUserAgentStylesheet());
-        FontIcon themeSelectedIcon = new FontIcon(Material2AL.CHECK);
+        FontIcon themeSelectedIcon = checkIcon;
         primerLightThemeMenuItem.setGraphic(themeSelectedIcon);
     }
 

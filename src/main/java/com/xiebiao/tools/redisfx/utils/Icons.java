@@ -1,8 +1,8 @@
 package com.xiebiao.tools.redisfx.utils;
 
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.material2.Material2AL;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
+import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
@@ -15,8 +15,8 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
  **/
 public abstract class Icons {
 
-  public static final FontIcon checkIcon = new FontIcon(Material2AL.CHECK);
-  public static final FontIcon deleteIcon = new FontIcon(Material2AL.DELETE);
+  public static final FontIcon checkIcon = new FontIcon(MaterialDesignC.CHECK);
+  public static final FontIcon deleteIcon = new FontIcon(MaterialDesignD.DELETE);
   public static final FontIcon serverIcon = new FontIcon(MaterialDesignS.SERVER);
   public static final FontIcon memoryIcon = new FontIcon(MaterialDesignM.MEMORY);
   public static final FontIcon temperatureIcon = new FontIcon(MaterialDesignC.COOLANT_TEMPERATURE);
