@@ -327,9 +327,7 @@
     <profile>
       <id>mac</id>
       <activation>
-        <os>
-          <family>mac</family>
-        </os>
+        <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
         <app.type>app-image</app.type>
@@ -338,11 +336,6 @@
     </profile>
     <profile>
       <id>unix</id>
-      <activation>
-        <os>
-          <family>unix</family>
-        </os>
-      </activation>
       <properties>
         <app.type>app-image</app.type>
         <app.icon>${project.build.directory}/icons/redisfx_512.png</app.icon>
@@ -350,14 +343,9 @@
     </profile>
     <profile>
       <id>win</id>
-      <activation>
-        <os>
-          <family>Windows</family>
-        </os>
-      </activation>
       <properties>
+        <app.type>msi</app.type>
         <app.icon>${project.build.directory}/icons/redisfx_512.ico</app.icon>
-        <app.type>exe</app.type>
       </properties>
     </profile>
   </profiles>
