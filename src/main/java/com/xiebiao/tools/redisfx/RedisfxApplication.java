@@ -1,9 +1,16 @@
 package com.xiebiao.tools.redisfx;
 
-import atlantafx.base.theme.PrimerLight;
 import com.xiebiao.tools.redisfx.controller.MainController;
 import com.xiebiao.tools.redisfx.utils.Constants;
+import java.awt.Taskbar;
+import java.awt.Toolkit;
+import java.io.IOException;
+import java.net.URL;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -11,48 +18,51 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
-import java.awt.*;
-import java.io.IOException;
-import java.net.URL;
-import java.util.Objects;
-
 public class RedisfxApplication extends Application {
-    private MainController mainController;
 
-    @Override
-    public void start(Stage stage) throws IOException {
+  private MainController mainController;
+  public static final ThreadPoolExecutor mainThreadPool = new ThreadPoolExecutor(
+      5, 10, 0L,
+      TimeUnit.MILLISECONDS,
+      new LinkedBlockingQueue<Runnable>()
+  );
 
-        FXMLLoader mainView = new FXMLLoader(RedisfxApplication.class.getResource("views/main-view.fxml"));
-        Parent root = mainView.load();
-        mainController = mainView.getController();
-        Scene scene = new Scene(root);
-        URL css = RedisfxApplication.class.getResource("styles/custom.css");
-        scene.getStylesheets().add(Objects.requireNonNull(css).toExternalForm());
-        stage.setTitle(Constants.appName);
-        Image image = new Image(Objects.requireNonNull(getClass().getResourceAsStream(Constants.logoUri)));
-        stage.getIcons().add(image);
-        if (Taskbar.isTaskbarSupported()) {
-            Taskbar taskbar = Taskbar.getTaskbar();
-            if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
-                final Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
-                var dockIcon = defaultToolkit.getImage(getClass().getResource(Constants.logoUri));
-                taskbar.setIconImage(dockIcon);
-            }
-        }
-        stage.setScene(scene);
-        stage.setMaximized(true);
-        stage.show();
+  @Override
+  public void start(Stage stage) throws IOException {
+
+    FXMLLoader mainView = new FXMLLoader(
+        RedisfxApplication.class.getResource("views/main-view.fxml"));
+    Parent root = mainView.load();
+    mainController = mainView.getController();
+    Scene scene = new Scene(root);
+    URL css = RedisfxApplication.class.getResource("styles/custom.css");
+    scene.getStylesheets().add(Objects.requireNonNull(css).toExternalForm());
+    stage.setTitle(Constants.appName);
+    Image image = new Image(
+        Objects.requireNonNull(getClass().getResourceAsStream(Constants.logoUri)));
+    stage.getIcons().add(image);
+    if (Taskbar.isTaskbarSupported()) {
+      Taskbar taskbar = Taskbar.getTaskbar();
+      if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+        final Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
+        var dockIcon = defaultToolkit.getImage(getClass().getResource(Constants.logoUri));
+        taskbar.setIconImage(dockIcon);
+      }
     }
+    stage.setScene(scene);
+    stage.setMaximized(true);
+    stage.show();
+  }
 
-    @Override
-    public void stop() {
-        mainController.destroy();
+  @Override
+  public void stop() {
+    mainController.destroy();
 
-    }
+  }
 
-    public static void main(String[] args) {
-        //TODO i18n
-        Locale.setDefault(new Locale("en", "en_US"));
-        launch();
-    }
+  public static void main(String[] args) {
+    //TODO i18n
+    Locale.setDefault(new Locale("en", "en_US"));
+    launch();
+  }
 }

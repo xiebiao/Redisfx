@@ -34,9 +34,11 @@ public class RedisInfo {
     this.info = info;
     parseRedisInfo();
   }
+
   public MemoryInfo getMemoryInfo() {
     return memoryInfo;
   }
+
   public StatsInfo getStatsInfo() {
     return statsInfo;
   }
@@ -48,6 +50,7 @@ public class RedisInfo {
   public ServerInfo getServerInfo() {
     return serverInfo;
   }
+
   private void parseRedisInfo() {
 
     if (this.info.contains("\r\n")) {
@@ -69,7 +72,7 @@ public class RedisInfo {
     List<Keyspace> newKeyspaces = new ArrayList<>();
     if (Objects.isNull(this.keyspaces) || this.keyspaces.isEmpty()) {
       defaultKeyspaceIndex.forEach(item -> {
-        Keyspace keyspace = new Keyspace(item, null);
+        Keyspace keyspace = new Keyspace(item);
         newKeyspaces.add(keyspace);
       });
       return newKeyspaces;
@@ -80,7 +83,7 @@ public class RedisInfo {
     Set<Integer> difference = Sets.difference(defaultKeyspaceIndex, indexSet);
     newKeyspaces.addAll(this.keyspaces);
     difference.forEach(item -> {
-      Keyspace keyspace = new Keyspace(item, null);
+      Keyspace keyspace = new Keyspace(item);
       newKeyspaces.add(keyspace);
     });
     Collections.sort(newKeyspaces);
@@ -154,6 +157,8 @@ public class RedisInfo {
         keyspace.setIndex(Integer.parseInt(v[0].replace("db", "")));
         String[] v2 = v[1].split(",");
         keyspace.setKeys(v2[0]);
+        keyspace.setExpires(v2[1]);
+        keyspace.setAvgTtl(v2[2]);
         keyspaces.add(keyspace);
       }
     }
@@ -275,21 +280,43 @@ public class RedisInfo {
 
     private static final int MAX_INDEX = 15;
     private int index;
+    private int keyCount = 0;
     private String keys;
+    private String expires;
+    private int expiresCount;
+    private String avgTtl;
+    private int avgTtlCount;
 
     public Keyspace() {
+    }
+
+    public Keyspace(int index) {
+      this.index = index;
     }
 
     public Keyspace(int index, String keys) {
       this.index = index;
       this.keys = keys;
+      parseKeyCount();
     }
 
     public void setIndex(int index) {
       this.index = index;
     }
+
+    public void setAvgTtl(String avgTtl) {
+      this.avgTtl = avgTtl;
+      this.avgTtlCount = Integer.parseInt(avgTtl.replace("avg_ttl=", ""));
+    }
+
+    public void setExpires(String expires) {
+      this.expires = expires;
+      this.expiresCount = Integer.parseInt(expires.replace("expires=", ""));
+    }
+
     public void setKeys(String keys) {
       this.keys = keys;
+      parseKeyCount();
     }
 
     public String getName() {
@@ -304,11 +331,32 @@ public class RedisInfo {
       return keys;
     }
 
+    public void parseKeyCount() {
+      if (keys != null) {
+        this.keyCount = Integer.parseInt(keys.replace("keys=", ""));
+      }
+    }
+
     public String toString() {
       if (keys == null) {
         return getName();
       }
       return getName() + "[" + keys + "]";
+    }
+
+    public int getKeyCount() {
+      if (keys == null) {
+        return 0;
+      }
+      return Integer.parseInt(keys.replace("keys=", ""));
+    }
+
+    public int getExpiresCount() {
+      return this.expiresCount;
+    }
+
+    public int getAvgTtlCount() {
+      return this.avgTtlCount;
     }
 
     @Override

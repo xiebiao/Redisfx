@@ -1,6 +1,7 @@
 package com.xiebiao.tools.redisfx.view;
 
 import static atlantafx.base.theme.Styles.TEXT_BOLD;
+import static com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool;
 import static com.xiebiao.tools.redisfx.utils.Constants.AUTO_REFRESH_DISABLED;
 import static com.xiebiao.tools.redisfx.utils.Constants.AUTO_REFRESH_ENABLED;
 
@@ -20,11 +21,16 @@ import com.xiebiao.tools.redisfx.utils.Icons;
 import com.xiebiao.tools.redisfx.utils.RedisfxStyles;
 import com.xiebiao.tools.redisfx.utils.Utils;
 import java.util.Iterator;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.StackedBarChart;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -137,6 +143,7 @@ public class ServerInfoTabView {
         createDetailInfo(redisInfo)
     );
     scrollPane.setContent(tabContents);
+    logger.debug("Asyn load redis info END");
   }
 
   private TitledPane createStatisticsInfo(RedisInfo redisInfo) {
@@ -146,7 +153,8 @@ public class ServerInfoTabView {
     statisticsInfo.setContentDisplay(ContentDisplay.RIGHT);
     statisticsInfo.setExpanded(true);
     statisticsInfo.setCollapsible(false);
-//    statisticsInfo.setContent(createDetailInfoTable(redisInfo));
+    statisticsInfo.setContent(createKeyspaceChart(redisInfo));
+
     return statisticsInfo;
   }
 
@@ -237,10 +245,37 @@ public class ServerInfoTabView {
   private Card createCard() {
     Card card = new Card();
     card.setPrefWidth(tabPane.getWidth() / 3);
-    card.setMinWidth(300);
     card.getStyleClass().add(Styles.ELEVATED_3);
     return card;
   }
+
+  private StackedBarChart<String, Number> createKeyspaceChart(RedisInfo redisInfo) {
+    var x = new CategoryAxis();
+    x.setLabel("Index");
+    var y = new NumberAxis(0, 1000000000, 10);
+    y.setLabel("Count");
+
+    StackedBarChart chart = new StackedBarChart<>(new CategoryAxis(), new NumberAxis());
+    chart.setTitle("Keyspace");
+    chart.setMinHeight(300);
+
+    var keys = new XYChart.Series<String, Number>();
+    keys.setName("Keys");
+    var expires = new XYChart.Series<String, Number>();
+    expires.setName("Expires");
+    var avgTtl = new XYChart.Series<String, Number>();
+    avgTtl.setName("Avg TTL");
+
+    redisInfo.getKeyspaces().forEach(keyspace -> {
+      keys.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getKeyCount()));
+      expires.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getExpiresCount()));
+      avgTtl.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getAvgTtlCount()));
+    });
+    chart.getData().addAll(keys, expires, avgTtl);
+
+    return chart;
+  }
+
 
   private Card createMemoryInfoCard(RedisInfo redisInfo) {
     Card card = createCard();
@@ -307,7 +342,10 @@ public class ServerInfoTabView {
   public void handleEventMessage(RedisfxEventMessasge eventMessasge) {
     if (eventMessasge.getEventType() == RedisfxEventType.CONNECTION_CONNECTED) {
       this.jedis = (Jedis) eventMessasge.getData();
-      show();
+      Platform.runLater(() -> {
+        logger.debug("Asyn load redis info");
+        show();
+      });
     }
   }
 }

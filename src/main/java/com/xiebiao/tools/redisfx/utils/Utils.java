@@ -12,7 +12,7 @@ public abstract class Utils {
         long currentTime = System.currentTimeMillis();
         node.setUserData(currentTime);
         if (userData instanceof Long lastClickTime) {
-            return currentTime - lastClickTime <= 1000;
+            return currentTime - lastClickTime <= 500;
         }
         return false;
     }

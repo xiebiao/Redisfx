@@ -271,7 +271,9 @@ public class RedisInfoTest {
         Assertions.assertEquals(16, keyspaces.size());
         Assertions.assertEquals(0, keyspaces.getFirst().getIndex());
         Assertions.assertEquals("keys=1", keyspaces.get(8).getKeys());
+        Assertions.assertEquals(1, keyspaces.get(8).getKeyCount());
         Assertions.assertEquals("keys=51", keyspaces.get(10).getKeys());
+        Assertions.assertEquals(51, keyspaces.get(10).getKeyCount());
         Assertions.assertEquals(15, keyspaces.getLast().getIndex());
         keyspaces = redisInfo.getKeyspaces();
         System.out.println(keyspaces);

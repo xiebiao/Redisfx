@@ -37,7 +37,7 @@
         <items>
             <VBox fx:id="connectionContainer" prefHeight="200.0" prefWidth="100.0" spacing="10.0">
                <children>
-                  <Button fx:id="newConnectionButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" prefHeight="50.0" text="New Connection">
+                  <Button fx:id="newConnectionButton" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="200.0" mnemonicParsing="false" prefHeight="50.0" text="New Connection">
                      <VBox.margin>
                         <Insets />
                      </VBox.margin>
