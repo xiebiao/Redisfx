@@ -10,7 +10,7 @@ public abstract class Constants {
     public static final String copyright = "© 2025";
 
     public static final String version = "Version 1.0.0";
-    public static final String logoUri = "/images/redisfx_512.png";
+    public static final String logoUri = "icons/redisfx_512.png";
     public static final int defaultPort = 6379;
     public static final String tabPaneId = "tabPane";
     public static final String serverInfoTabId = "serverInfo";
