@@ -10,9 +10,7 @@ module com.xiebiao.tools.redisfx {
     requires java.management;
     requires ch.qos.logback.core;
     requires org.kordamp.ikonli.javafx;
-    requires org.kordamp.ikonli.material2;
     requires org.kordamp.ikonli.materialdesign2;
-
 
     opens com.xiebiao.tools.redisfx to javafx.fxml;
     exports com.xiebiao.tools.redisfx;
