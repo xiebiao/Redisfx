@@ -1,7 +1,6 @@
 package com.xiebiao.tools.redisfx.view;
 
 import static atlantafx.base.theme.Styles.TEXT_BOLD;
-import static com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool;
 import static com.xiebiao.tools.redisfx.utils.Constants.AUTO_REFRESH_DISABLED;
 import static com.xiebiao.tools.redisfx.utils.Constants.AUTO_REFRESH_ENABLED;
 
@@ -13,14 +12,17 @@ import com.google.common.base.Splitter;
 import com.google.common.eventbus.Subscribe;
 import com.xiebiao.tools.redisfx.model.DetailInfo;
 import com.xiebiao.tools.redisfx.model.RedisInfo;
+import com.xiebiao.tools.redisfx.model.RedisInfoProperty;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventBusService;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventMessasge;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventType;
 import com.xiebiao.tools.redisfx.utils.Constants;
 import com.xiebiao.tools.redisfx.utils.Icons;
 import com.xiebiao.tools.redisfx.utils.RedisfxStyles;
-import com.xiebiao.tools.redisfx.utils.Utils;
 import java.util.Iterator;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -62,11 +64,16 @@ public class ServerInfoTabView {
   private ScrollPane scrollPane;
   private VBox tabContents;
   private HBox cards;
+  private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+  private RedisInfoProperty redisInfoProperty;
+  private StackedBarChart chart;
+  private XYChart.Series<String, Number> keys;
+  private XYChart.Series<String, Number> expires;
+  private XYChart.Series<String, Number> avgTtl;
 
   public ServerInfoTabView(String connectionName, TabPane tabPane) {
     this.connectionName = connectionName;
     this.tabPane = tabPane;
-
   }
 
   public Tab create() {
@@ -105,17 +112,18 @@ public class ServerInfoTabView {
     autoRefreshToggle.setSelected(false);
     autoRefreshToggle.selectedProperty().addListener(
         (obs, old, newVal) -> {
-          if (Utils.isFastClick(autoRefreshToggle)) {
-            logger.debug("{} fast click, id:{}",
-                autoRefreshToggle.getClass().getSimpleName(),
-                autoRefreshToggle.getId());
-
+          if (newVal) {
+            scheduler.scheduleAtFixedRate(() -> {
+              Platform.runLater(() -> {
+                RedisInfo redisInfo = new RedisInfo(jedis.info());
+                redisInfoProperty.setRedisInfo(redisInfo);
+              });
+            }, 0, 2, TimeUnit.SECONDS);
           } else {
-            if (newVal) {
-              //TODO
-            }
-            autoRefreshToggle.setText(newVal ? AUTO_REFRESH_ENABLED : AUTO_REFRESH_DISABLED);
+            scheduler.shutdown();
           }
+          autoRefreshToggle.setText(newVal ? AUTO_REFRESH_ENABLED : AUTO_REFRESH_DISABLED);
+          logger.debug("auto refresh enable:{}", newVal);
         }
     );
     return autoRefreshToggle;
@@ -125,12 +133,13 @@ public class ServerInfoTabView {
   private void show() {
     String info = jedis.info();
     RedisInfo redisInfo = new RedisInfo(info);
+    redisInfoProperty = new RedisInfoProperty(redisInfo);
     cards = new HBox();
     cards.setSpacing(Constants.spacing_20);
     cards.getChildren().addAll(
         createServerInfoCard(redisInfo),
-        createMemoryInfoCard(redisInfo),
-        createStatsInfoCard(redisInfo)
+        createMemoryInfoCard(redisInfoProperty),
+        createStatsInfoCard(redisInfoProperty)
     );
 
     tabContents = new VBox();
@@ -140,7 +149,7 @@ public class ServerInfoTabView {
         createAutoRefreshToggle(),
         cards,
         createStatisticsInfo(redisInfo),
-        createDetailInfo(redisInfo)
+        createDetailInfo(redisInfoProperty)
     );
     scrollPane.setContent(tabContents);
     logger.debug("Asyn load redis info END");
@@ -158,7 +167,7 @@ public class ServerInfoTabView {
     return statisticsInfo;
   }
 
-  private TitledPane createDetailInfo(RedisInfo redisInfo) {
+  private TitledPane createDetailInfo(RedisInfoProperty redisInfo) {
     var searchField = new CustomTextField();
     searchField.setRight(Icons.textSearchIcon);
     searchField.setMinWidth(150);
@@ -203,8 +212,8 @@ public class ServerInfoTabView {
     return card;
   }
 
-  private TableView<DetailInfo> createDetailInfoTable(RedisInfo redisInfo) {
-    Iterable<String> lines = redisInfo.getLines();
+  private TableView<DetailInfo> createDetailInfoTable(RedisInfoProperty redisInfo) {
+    Iterable<String> lines = redisInfo.getRedisInfo().getLines();
     TableView<DetailInfo> tableView = new TableView<>();
     tableView.addEventFilter(ScrollEvent.SCROLL, event -> {
       if (event.getDeltaX() != 0) {
@@ -250,34 +259,38 @@ public class ServerInfoTabView {
   }
 
   private StackedBarChart<String, Number> createKeyspaceChart(RedisInfo redisInfo) {
-    var x = new CategoryAxis();
-    x.setLabel("Index");
-    var y = new NumberAxis(0, 1000000000, 10);
-    y.setLabel("Count");
+    if (chart == null) {
+      var x = new CategoryAxis();
+      x.setLabel("Database");
+      var y = new NumberAxis();
+      y.setLabel("Count");
 
-    StackedBarChart chart = new StackedBarChart<>(new CategoryAxis(), new NumberAxis());
-    chart.setTitle("Keyspace");
-    chart.setMinHeight(300);
+      chart = new StackedBarChart<>(x, y);
+      chart.setTitle("Keyspace");
+      chart.setMinHeight(300);
 
-    var keys = new XYChart.Series<String, Number>();
-    keys.setName("Keys");
-    var expires = new XYChart.Series<String, Number>();
-    expires.setName("Expires");
-    var avgTtl = new XYChart.Series<String, Number>();
-    avgTtl.setName("Avg TTL");
-
+      keys = new XYChart.Series<String, Number>();
+      keys.setName("Keys");
+      expires = new XYChart.Series<String, Number>();
+      expires.setName("Expires");
+      avgTtl = new XYChart.Series<String, Number>();
+      avgTtl.setName("Avg TTL");
+    }
+    keys.getData().clear();
+    expires.getData().clear();
+    avgTtl.getData().clear();
     redisInfo.getKeyspaces().forEach(keyspace -> {
       keys.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getKeyCount()));
       expires.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getExpiresCount()));
       avgTtl.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getAvgTtlCount()));
     });
+    chart.getData().clear();
     chart.getData().addAll(keys, expires, avgTtl);
-
     return chart;
   }
 
 
-  private Card createMemoryInfoCard(RedisInfo redisInfo) {
+  private Card createMemoryInfoCard(RedisInfoProperty redisInfoProperty) {
     Card card = createCard();
     Label label = new Label("Memory", Icons.memoryIcon);
     label.getStyleClass().addAll(Styles.TITLE_4, TEXT_BOLD);
@@ -288,25 +301,34 @@ public class ServerInfoTabView {
     body.setHgap(Constants.spacing_10);
 
     body.add(new Label("Total System Memory:"), 0, 0);
-    Label systemMemory = new Label(redisInfo.getMemoryInfo().getTotalSystemMemoryHuman());
+    Label systemMemory = new Label(
+        redisInfoProperty.getRedisInfo().getMemoryInfo().getTotalSystemMemoryHuman());
     systemMemory.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    systemMemory.textProperty()
+        .bind(redisInfoProperty.getMemoryInfoProperty().totalSystemMemoryHumanProperty());
     body.add(systemMemory, 1, 0);
 
     body.add(new Label("Used Memory:"), 0, 1);
-    Label usedMemory = new Label(redisInfo.getMemoryInfo().getUsedMemoryHuman());
+    Label usedMemory = new Label(
+        redisInfoProperty.getRedisInfo().getMemoryInfo().getUsedMemoryHuman());
     usedMemory.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    usedMemory.textProperty()
+        .bind(redisInfoProperty.getMemoryInfoProperty().usedMemoryHumanProperty());
     body.add(usedMemory, 1, 1);
 
     body.add(new Label("Used Memory Peak:"), 0, 2);
-    Label usedMemoryPeak = new Label(redisInfo.getMemoryInfo().getUsedMemoryPeakHuman());
+    Label usedMemoryPeak = new Label(
+        redisInfoProperty.getRedisInfo().getMemoryInfo().getUsedMemoryPeakHuman());
     usedMemoryPeak.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    usedMemoryPeak.textProperty()
+        .bind(redisInfoProperty.getMemoryInfoProperty().usedMemoryPeakHumanProperty());
     body.add(usedMemoryPeak, 1, 2);
 
     card.setBody(body);
     return card;
   }
 
-  private Card createStatsInfoCard(RedisInfo redisInfo) {
+  private Card createStatsInfoCard(RedisInfoProperty redisInfoProperty) {
     Card card = createCard();
     Label label = new Label("Stats", Icons.temperatureIcon);
     label.getStyleClass().addAll(Styles.TITLE_4, TEXT_BOLD);
@@ -315,23 +337,34 @@ public class ServerInfoTabView {
     body.setVgap(Constants.spacing_10);
     body.setHgap(Constants.spacing_10);
     body.add(new Label("Connected Clients:"), 0, 0);
-    Label connectedClients = new Label(redisInfo.getStatsInfo().getConnectedClients());
+    Label connectedClients = new Label(
+        redisInfoProperty.getRedisInfo().getStatsInfo().getConnectedClients());
     connectedClients.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    connectedClients.textProperty()
+        .bind(redisInfoProperty.getStatsInfoProperty().getConnectedClients());
     body.add(connectedClients, 1, 0);
 
     body.add(new Label("Total Connections:"), 0, 1);
-    Label totalConnections = new Label(redisInfo.getStatsInfo().getTotalConnections());
+    Label totalConnections = new Label(
+        redisInfoProperty.getRedisInfo().getStatsInfo().getTotalConnections());
     totalConnections.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    totalConnections.textProperty()
+        .bind(redisInfoProperty.getStatsInfoProperty().getTotalConnections());
     body.add(totalConnections, 1, 1);
 
     body.add(new Label("Total Commands Processed:"), 0, 2);
-    Label totalCommandsProcessed = new Label(redisInfo.getStatsInfo().getTotalCommandsProcessed());
+    Label totalCommandsProcessed = new Label(
+        redisInfoProperty.getRedisInfo().getStatsInfo().getTotalCommandsProcessed());
     totalCommandsProcessed.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    totalCommandsProcessed.textProperty()
+        .bind(redisInfoProperty.getStatsInfoProperty().getTotalCommandsProcessed());
     body.add(totalCommandsProcessed, 1, 2);
 
     body.add(new Label("Key Misses:"), 0, 3);
-    Label keyMisses = new Label(redisInfo.getStatsInfo().getKeyMisses());
+    Label keyMisses = new Label(
+        redisInfoProperty.getRedisInfo().getStatsInfo().getKeyMisses());
     keyMisses.getStyleClass().addAll(RedisfxStyles.IMPORTANT_INFO_CLASS);
+    keyMisses.textProperty().bind(redisInfoProperty.getStatsInfoProperty().getKeyMisses());
     body.add(keyMisses, 1, 3);
 
     card.setBody(body);
