@@ -276,15 +276,11 @@ public class ServerInfoTabView {
       avgTtl = new XYChart.Series<String, Number>();
       avgTtl.setName("Avg TTL");
     }
-    keys.getData().clear();
-    expires.getData().clear();
-    avgTtl.getData().clear();
     redisInfo.getKeyspaces().forEach(keyspace -> {
       keys.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getKeyCount()));
       expires.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getExpiresCount()));
       avgTtl.getData().add(new XYChart.Data<>(keyspace.getName(), keyspace.getAvgTtlCount()));
     });
-    chart.getData().clear();
     chart.getData().addAll(keys, expires, avgTtl);
     return chart;
   }
