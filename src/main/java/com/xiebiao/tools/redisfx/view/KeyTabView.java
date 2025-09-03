@@ -2,6 +2,7 @@ package com.xiebiao.tools.redisfx.view;
 
 import atlantafx.base.layout.InputGroup;
 import atlantafx.base.theme.Styles;
+import com.google.common.base.Strings;
 import com.google.common.eventbus.Subscribe;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventBusService;
 import com.xiebiao.tools.redisfx.service.eventbus.RedisfxEventMessasge;
@@ -19,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.params.SetParams;
+
+import java.util.Objects;
 
 /**
  * @author Bill Xie
@@ -143,11 +146,11 @@ public class KeyTabView {
         tips.setPrefWidth(100);
         saveButton = new Button("Save");
         saveButton.setOnAction(event -> {
-            if (key.getText() == null) {
+            if (Strings.isNullOrEmpty(key.getText()) || Strings.isNullOrEmpty(key.getText().trim())) {
                 key.pseudoClassStateChanged(Styles.STATE_DANGER, true);
                 return;
             }
-            if (value.getText() == null) {
+            if (Strings.isNullOrEmpty(value.getText()) || Strings.isNullOrEmpty(value.getText().trim())) {
                 value.pseudoClassStateChanged(Styles.STATE_DANGER, true);
                 return;
             }
