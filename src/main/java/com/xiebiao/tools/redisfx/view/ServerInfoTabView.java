@@ -8,8 +8,11 @@ import atlantafx.base.controls.Card;
 import atlantafx.base.controls.CustomTextField;
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
+import atlantafx.base.theme.Tweaks;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.eventbus.Subscribe;
+import com.xiebiao.tools.redisfx.core.LifeCycle;
 import com.xiebiao.tools.redisfx.model.DetailInfo;
 import com.xiebiao.tools.redisfx.model.RedisInfo;
 import com.xiebiao.tools.redisfx.model.RedisInfoProperty;
@@ -21,14 +24,18 @@ import com.xiebiao.tools.redisfx.utils.Icons;
 import com.xiebiao.tools.redisfx.utils.RedisfxStyles;
 
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.CategoryAxis;
@@ -57,7 +64,7 @@ import redis.clients.jedis.Jedis;
  * @author Bill Xie
  * @since 2025/8/15 18:43
  **/
-public class ServerInfoTabView {
+public class ServerInfoTabView implements LifeCycle {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerInfoTabView.class);
     private String connectionName;
@@ -72,6 +79,10 @@ public class ServerInfoTabView {
     private XYChart.Series<String, Number> keys;
     private XYChart.Series<String, Number> expires;
     private XYChart.Series<String, Number> avgTtl;
+    private TableView<DetailInfo> detailInfoTable;
+    private FilteredList<DetailInfo> filteredData;
+    private CustomTextField searchTextField;
+    private volatile boolean autoRefreshPaused = false;
 
     public ServerInfoTabView(String connectionName, TabPane tabPane) {
         this.connectionName = connectionName;
@@ -115,15 +126,19 @@ public class ServerInfoTabView {
         autoRefreshToggle.selectedProperty().addListener(
                 (obs, old, newVal) -> {
                     if (newVal) {
+                        autoRefreshPaused = false;
                         scheduler.scheduleAtFixedRate(() -> {
-                            Platform.runLater(() -> {
-                                RedisInfo redisInfo = new RedisInfo(jedis.info());
-                                redisInfoProperty.setRedisInfo(redisInfo);
-                                createKeyspaceChart(redisInfo);
-                            });
+                            if (!autoRefreshPaused) {
+                                Platform.runLater(() -> {
+                                    RedisInfo redisInfo = new RedisInfo(jedis.info());
+                                    redisInfoProperty.setRedisInfo(redisInfo);
+                                    createKeyspaceChart(redisInfo);
+                                    createDetailInfoTable(redisInfo);
+                                });
+                            }
                         }, 0, 2, TimeUnit.SECONDS);
                     } else {
-                        scheduler.shutdown();
+                        autoRefreshPaused = true;
                     }
                     autoRefreshToggle.setText(newVal ? AUTO_REFRESH_ENABLED : AUTO_REFRESH_DISABLED);
                     logger.debug("auto refresh enable:{}", newVal);
@@ -152,7 +167,7 @@ public class ServerInfoTabView {
                 createAutoRefreshToggle(),
                 cards,
                 createStatisticsInfo(redisInfo),
-                createDetailInfo(redisInfoProperty)
+                createDetailInfo(redisInfo)
         );
         scrollPane.setContent(tabContents);
     }
@@ -169,12 +184,20 @@ public class ServerInfoTabView {
         return statisticsInfo;
     }
 
-    private TitledPane createDetailInfo(RedisInfoProperty redisInfo) {
-        var searchField = new CustomTextField();
-        searchField.setRight(Icons.textSearchIcon);
-        searchField.setMinWidth(150);
+    private TitledPane createDetailInfo(RedisInfo redisInfo) {
+        searchTextField = new CustomTextField();
+        searchTextField.setRight(Icons.textSearchIcon);
+        searchTextField.setMinWidth(150);
+        searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
+            filteredData.setPredicate(detailInfo -> {
+                if (Objects.nonNull(detailInfo.getKey()) && detailInfo.getKey().contains(newValue)) {
+                    return true;
+                }
+                return Objects.nonNull(detailInfo.getValue()) && detailInfo.getValue().contains(newValue);
+            });
+        });
         TitledPane detailInfo = new TitledPane();
-        detailInfo.setGraphic(searchField);
+        detailInfo.setGraphic(searchTextField);
         detailInfo.setTextAlignment(TextAlignment.LEFT);
         detailInfo.setGraphicTextGap(Constants.spacing_20);
         detailInfo.setText("All Redis Info");
@@ -214,29 +237,38 @@ public class ServerInfoTabView {
         return card;
     }
 
-    private TableView<DetailInfo> createDetailInfoTable(RedisInfoProperty redisInfo) {
-        Iterable<String> lines = redisInfo.getRedisInfo().getLines();
-        TableView<DetailInfo> tableView = new TableView<>();
-        tableView.addEventFilter(ScrollEvent.SCROLL, event -> {
-            if (event.getDeltaX() != 0) {
-                event.consume();
-            }
-        });
+    private TableView<DetailInfo> createDetailInfoTable(RedisInfo redisInfo) {
+        Iterable<String> lines = redisInfo.getLines();
         ObservableList<DetailInfo> data = buildDetailInfo(lines);
-        tableView.setItems(data);
-        TableColumn<DetailInfo, String> key = new TableColumn<>("Key");
-        key.setMinWidth(200);
-        TableColumn<DetailInfo, String> value = new TableColumn<>("Value");
-        key.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getKey()));
-        value.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getValue()));
-        value.prefWidthProperty().bind(tableView.widthProperty().multiply(0.70));
-        tableView.getColumns().addAll(key, value);
-        tableView.setFixedCellSize(30);
-        tableView.setPrefHeight(tableView.getFixedCellSize() * data.size());
-//        tableView.getStyleClass().add(Tweaks.EDGE_TO_EDGE);
-        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-
-        return tableView;
+        if (detailInfoTable == null) {
+            detailInfoTable = new TableView<>();
+            detailInfoTable.addEventFilter(ScrollEvent.SCROLL, event -> {
+                if (event.getDeltaX() != 0) {
+                    event.consume();
+                }
+            });
+            TableColumn<DetailInfo, String> key = new TableColumn<>("Key");
+            key.setMinWidth(200);
+            TableColumn<DetailInfo, String> value = new TableColumn<>("Value");
+            key.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getKey()));
+            value.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getValue()));
+            value.prefWidthProperty().bind(detailInfoTable.widthProperty().multiply(0.70));
+            detailInfoTable.getColumns().addAll(key, value);
+            detailInfoTable.setFixedCellSize(30);
+            detailInfoTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        }
+        if (!Strings.isNullOrEmpty(searchTextField.getText())) {
+            filteredData = data.filtered(p -> {
+                if (!Strings.isNullOrEmpty(p.getKey()) && p.getKey().contains(searchTextField.getText())) {
+                    return true;
+                } else return !Strings.isNullOrEmpty(p.getValue()) && p.getValue().contains(searchTextField.getText());
+            });
+        } else {
+            filteredData = new FilteredList<>(data, p -> true);
+        }
+        detailInfoTable.setPrefHeight(detailInfoTable.getFixedCellSize() * data.size());
+        detailInfoTable.setItems(filteredData);
+        return detailInfoTable;
     }
 
     private ObservableList<DetailInfo> buildDetailInfo(Iterable<String> lines) {
@@ -290,7 +322,6 @@ public class ServerInfoTabView {
                 expires.getData().get(i).setYValue(redisInfo.getKeyspaces().get(i).getExpiresCount());
                 avgTtl.getData().get(i).setYValue(redisInfo.getKeyspaces().get(i).getAvgTtlCount());
             }
-            logger.debug("Update chart data.");
         }
 
         return chart;
@@ -386,5 +417,10 @@ public class ServerInfoTabView {
                 show();
             });
         }
+    }
+
+    @Override
+    public void destroy() {
+        scheduler.shutdownNow();
     }
 }

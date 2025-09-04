@@ -187,7 +187,6 @@ public class KeyTabView {
     private InputGroup createTTL() {
         ttlSpinner = new Spinner<>();
         ttlSpinner.setEditable(true);
-        ttlSpinner.getStyleClass().remove("spinner");
         Label ttlLabel = new Label("TTL");
         Button update = new Button();
         update.setGraphic(Icons.checkIcon);
