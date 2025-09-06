@@ -1,5 +1,8 @@
 package com.xiebiao.tools.redisfx.utils;
 
+import com.xiebiao.tools.redisfx.RedisfxApplication;
+import java.util.Objects;
+import javafx.scene.image.Image;
 import org.kordamp.ikonli.javafx.FontIcon;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
 import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
@@ -21,4 +24,6 @@ public abstract class Icons {
   public static final FontIcon memoryIcon = new FontIcon(MaterialDesignM.MEMORY);
   public static final FontIcon temperatureIcon = new FontIcon(MaterialDesignC.COOLANT_TEMPERATURE);
   public static final FontIcon textSearchIcon = new FontIcon(MaterialDesignT.TEXT_SEARCH_VARIANT);
+  public static final Image logoImage = new Image(
+      Objects.requireNonNull(RedisfxApplication.class.getResourceAsStream(Constants.logoUri)));
 }

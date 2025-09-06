@@ -145,8 +145,7 @@ public class MainController implements Initializable {
             aboutStage.initOwner(owner);
             aboutStage.setTitle("About");
 
-            // 创建内容
-            ImageView logo = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(Constants.logoUri))));
+            ImageView logo = new ImageView(Icons.logoImage);
             logo.setFitWidth(84);
             logo.setFitHeight(84);
 

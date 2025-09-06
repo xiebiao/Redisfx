@@ -2,6 +2,7 @@ package com.xiebiao.tools.redisfx;
 
 import com.xiebiao.tools.redisfx.controller.MainController;
 import com.xiebiao.tools.redisfx.utils.Constants;
+import com.xiebiao.tools.redisfx.utils.Icons;
 import java.awt.Taskbar;
 import java.awt.Toolkit;
 import java.io.IOException;
@@ -17,6 +18,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import javax.swing.Icon;
 
 public class RedisfxApplication extends Application {
 
@@ -38,9 +40,7 @@ public class RedisfxApplication extends Application {
     URL css = RedisfxApplication.class.getResource("styles/custom.css");
     scene.getStylesheets().add(Objects.requireNonNull(css).toExternalForm());
     stage.setTitle(Constants.appName);
-    Image image = new Image(
-        Objects.requireNonNull(getClass().getResourceAsStream(Constants.logoUri)));
-    stage.getIcons().add(image);
+    stage.getIcons().add(Icons.logoImage);
     if (Taskbar.isTaskbarSupported()) {
       Taskbar taskbar = Taskbar.getTaskbar();
       if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
