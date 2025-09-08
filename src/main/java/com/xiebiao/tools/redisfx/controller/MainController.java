@@ -25,6 +25,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -54,6 +55,8 @@ public class MainController implements Initializable {
     private SplitPane splitPane;
     @FXML
     private MenuItem aboutMenuItem;
+    @FXML
+    private MenuBar mainMenuBar;
     @FXML
     private VBox connectionContainer;
 
@@ -165,7 +168,6 @@ public class MainController implements Initializable {
             Button closeButton = new Button("Close");
             closeButton.setOnAction(e -> aboutStage.close());
 
-            // 布局
             VBox layout = new VBox(10);
             layout.setStyle("-fx-padding: 20; -fx-alignment: center;");
             layout.getChildren().addAll(

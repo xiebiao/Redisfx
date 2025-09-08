@@ -14,7 +14,9 @@ import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +36,7 @@ public class KeyTabView {
     private TextField key;
     private TextArea value;
     private Jedis jedis;
-    private Label tips;
+    //    private Label tips;
     private Button saveButton;
     private Button deleteKeyButton;
     private ButtonBar bottomButtonBar;
@@ -131,8 +133,9 @@ public class KeyTabView {
         });
         key.setPrefWidth(400);
         deleteKeyButton = createDeleteButton();
-        flowPane.getChildren().addAll(keyTypes, key, createTTL(), deleteKeyButton);
-
+        flowPane.getChildren().addAll(keyTypes, key);
+        createTTL(flowPane);
+        flowPane.getChildren().add(deleteKeyButton);
         value = new TextArea();
         value.textProperty().addListener(observable -> {
             if (value.getText() != null) {
@@ -142,8 +145,6 @@ public class KeyTabView {
         value.setEditable(true);
 
         bottomButtonBar = new ButtonBar();
-        tips = new Label();
-        tips.setPrefWidth(100);
         saveButton = new Button("Save");
         saveButton.setOnAction(event -> {
             if (Strings.isNullOrEmpty(key.getText()) || Strings.isNullOrEmpty(key.getText().trim())) {
@@ -163,23 +164,16 @@ public class KeyTabView {
                 String result = jedis.set(key.getText(), value.getText(), setParams);
                 if (result.equals(Constants.SUCCESS)) {
                     RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.NEW_KEY_CREATED));
-
-                    tips.setText("Save Success");
-                    tips.setVisible(true);
-                    tips.pseudoClassStateChanged(Styles.STATE_SUCCESS, true);
-                    PauseTransition visiblePause = new PauseTransition(Duration.seconds(2));
-                    visiblePause.setOnFinished(event2 -> tips.setVisible(false));
-                    visiblePause.play();
-
+                    ToastView.show(true, "Save Success", (Stage) tabPane.getScene().getWindow());
                     saveButton.pseudoClassStateChanged(Styles.STATE_SUCCESS, true);
                     logger.debug("Redis set(key={}) Success", key.getText());
                 }
             } catch (Exception e) {
-                tips.setText(e.getMessage());
+                ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
             }
             saveButton.setDisable(false);
         });
-        bottomButtonBar.getButtons().addAll(tips, saveButton);
+        bottomButtonBar.getButtons().addAll(saveButton);
         vBox.getChildren().addAll(flowPane, value, bottomButtonBar);
         return vBox;
     }
@@ -188,11 +182,28 @@ public class KeyTabView {
         ttlSpinner = new Spinner<>();
         ttlSpinner.setEditable(true);
         Label ttlLabel = new Label("TTL");
+        Tooltip ttlTooltip = new Tooltip("-1 means never expire");
+        ttlLabel.setTooltip(ttlTooltip);
         Button update = new Button();
+
         update.setGraphic(Icons.checkIcon);
         InputGroup ttlInputGroup = new InputGroup(ttlLabel, ttlSpinner, update);
         ttlSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(-1, Integer.MAX_VALUE));
         return ttlInputGroup;
+    }
+
+    private void createTTL(Pane parent) {
+        ttlSpinner = new Spinner<>();
+        ttlSpinner.setEditable(true);
+        Label ttlLabel = new Label("TTL");
+        Tooltip ttlTooltip = new Tooltip("-1 means never expire");
+        ttlLabel.setTooltip(ttlTooltip);
+        Button update = new Button();
+
+        update.setGraphic(Icons.checkIcon);
+//        InputGroup ttlInputGroup = new InputGroup(ttlLabel, ttlSpinner, update);
+        ttlSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(-1, Integer.MAX_VALUE));
+        parent.getChildren().addAll(ttlLabel, ttlSpinner, update);
     }
 
     private Button createDeleteButton() {

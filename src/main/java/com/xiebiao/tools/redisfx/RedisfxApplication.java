@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import com.xiebiao.tools.redisfx.utils.RedisfxStyles;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -37,8 +39,7 @@ public class RedisfxApplication extends Application {
     Parent root = mainView.load();
     mainController = mainView.getController();
     Scene scene = new Scene(root);
-    URL css = RedisfxApplication.class.getResource("styles/custom.css");
-    scene.getStylesheets().add(Objects.requireNonNull(css).toExternalForm());
+    scene.getStylesheets().add(Objects.requireNonNull(RedisfxStyles.styles).toExternalForm());
     stage.setTitle(Constants.appName);
     stage.getIcons().add(Icons.logoImage);
     if (Taskbar.isTaskbarSupported()) {
