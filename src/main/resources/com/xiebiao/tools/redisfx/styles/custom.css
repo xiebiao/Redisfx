@@ -44,7 +44,7 @@
     -fx-background-color: -color-success-3 ;
     -fx-text-fill: white;
     -fx-padding: 10px;
-    -fx-background-radius: 4;
+    -fx-background-radius: 0 0 4 4;
 }
 .toast_failed {
     -fx-background-color: -color-danger-3 ;

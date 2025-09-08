@@ -18,7 +18,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -38,8 +37,10 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
-import redis.clients.jedis.Jedis;
+import redis.clients.jedis.DefaultJedisClientConfig;
+import redis.clients.jedis.JedisClientConfig;
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.resps.ScanResult;
 
 /**
@@ -50,7 +51,7 @@ public class ConnectionTitledPane implements LifeCycle {
 
   private static Logger logger = org.slf4j.LoggerFactory.getLogger(ConnectionTitledPane.class);
   private JedisPool jedisPool;
-  private Jedis jedis;
+
   private RedisConnectionInfo redisConnectionInfo;
   private TitledPane connectionTitledPane;
   private TabPane tabPane;
@@ -77,7 +78,11 @@ public class ConnectionTitledPane implements LifeCycle {
   }
 
   private void initJedisPool() {
+    JedisPoolConfig config =  new JedisPoolConfig();
+    config.setTestOnBorrow(true);
+    config.setTestWhileIdle(true);
     jedisPool = new JedisPool(
+        config,
         redisConnectionInfo.host(),
         redisConnectionInfo.port(),
         redisConnectionInfo.username(),
@@ -210,9 +215,7 @@ public class ConnectionTitledPane implements LifeCycle {
           .anyMatch(tab -> tab.getId().equals(Constants.keyInfoTabId));
       if (!isKeyInfoTabCreated) {
         keyInfoTab = keyTabView.create(Constants.NEW_KEY_TITLE);
-        if (jedis == null) {
-          jedis = this.jedisPool.getResource();
-        }
+        var jedis = this.jedisPool.getResource();
         jedis.select(databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex());
         keyTabView.setJedis(jedis);
       }
@@ -247,9 +250,7 @@ public class ConnectionTitledPane implements LifeCycle {
                   .anyMatch(tab -> tab.getId().equals(Constants.keyInfoTabId));
               if (!isKeyInfoTabCreated) {
                 keyInfoTab = keyTabView.create(Constants.NEW_KEY_TITLE);
-                if (jedis == null) {
-                  jedis = jedisPool.getResource();
-                }
+                var jedis = jedisPool.getResource();
                 jedis.select(databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex());
                 keyTabView.setJedis(jedis);
               }
@@ -262,9 +263,7 @@ public class ConnectionTitledPane implements LifeCycle {
   }
 
   private void loadKeys(boolean loadMore) {
-    if (jedis == null) {
-      jedis = jedisPool.getResource();
-    }
+    var jedis = jedisPool.getResource();
     int index = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
     jedis.select(index);
     KeyPage keyPage = keyPageMap.getOrDefault(index, new KeyPage());
@@ -288,14 +287,15 @@ public class ConnectionTitledPane implements LifeCycle {
     return FXCollections.observableArrayList(uniqueSet);
   }
 
-    private void loadDatabases(ChoiceBox<RedisInfo.Keyspace> choiceBox) {
-        String redisInfoText = this.jedisPool.getResource().info();
-        RedisInfo redisInfo = new RedisInfo(redisInfoText);
-        choiceBox.getItems().clear();
-        choiceBox.getItems().addAll(redisInfo.getKeyspaces());
-        choiceBox.getSelectionModel().selectFirst();
-        RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.DATABASE_CHANGED, jedis));
-    }
+  private void loadDatabases(ChoiceBox<RedisInfo.Keyspace> choiceBox) {
+    var jedis = this.jedisPool.getResource();
+    String redisInfoText = jedis.info();
+    RedisInfo redisInfo = new RedisInfo(redisInfoText);
+    choiceBox.getItems().clear();
+    choiceBox.getItems().addAll(redisInfo.getKeyspaces());
+    choiceBox.getSelectionModel().selectFirst();
+    RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.DATABASE_CHANGED, jedis));
+  }
 
   @Subscribe
   public void handleEventMessage(RedisfxEventMessasge eventMessasge) {
