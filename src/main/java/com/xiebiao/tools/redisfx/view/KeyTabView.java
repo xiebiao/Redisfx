@@ -99,13 +99,18 @@ public class KeyTabView {
                 tabPane.getTabs().add(keyTab);
             }
             String selectedKey = (String) eventMessasge.getData();
-            String keyType = jedis.type(selectedKey);
-            keyTypes.getSelectionModel().select(keyType);
-            keyTypes.setDisable(true);
-            key.setText(selectedKey);
-            //TODO support other key types
-            String selectedKeyValue = jedis.get(selectedKey);
-            value.setText(selectedKeyValue);
+            try {
+                String keyType = jedis.type(selectedKey);
+                keyTypes.getSelectionModel().select(keyType);
+                keyTypes.setDisable(true);
+                key.setText(selectedKey);
+                //TODO support other key types
+                String selectedKeyValue = jedis.get(selectedKey);
+                value.setText(selectedKeyValue);
+            } catch (Exception e) {
+                ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+                return;
+            }
             tabPane.getSelectionModel().select(keyTab);
         }
 

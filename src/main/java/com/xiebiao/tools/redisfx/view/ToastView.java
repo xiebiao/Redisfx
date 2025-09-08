@@ -30,9 +30,11 @@ public class ToastView {
         toastStage.setAlwaysOnTop(true);
 
         Label label = new Label(message);
-        label.getStyleClass().add(isSuccess ? RedisfxStyles.TOAST_SUCCESS_CLASS : RedisfxStyles.TOAST_FAILED_CLASS);
+        label.getStyleClass().add(RedisfxStyles.TOAST_SUCCESS_CLASS);
+        if (!isSuccess) {
+            label.getStyleClass().add(RedisfxStyles.TOAST_FAILED_CLASS);
+        }
         label.setOpacity(0.9);
-
         StackPane root = new StackPane(label);
         root.setAlignment(Pos.TOP_CENTER);
         Scene scene = new Scene(root);
@@ -41,7 +43,7 @@ public class ToastView {
 
         toastStage.setScene(scene);
         //Display at top center.
-        double centerX = ownerStage.getX() + ownerStage.getWidth() / 2 ;
+        double centerX = ownerStage.getX() + ownerStage.getWidth() / 2;
         double centerY = ownerStage.getY();
         toastStage.setX(centerX - (double) message.length() / 2);
         toastStage.setY(centerY);
