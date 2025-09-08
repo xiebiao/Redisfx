@@ -4,11 +4,7 @@ import com.xiebiao.tools.redisfx.RedisfxApplication;
 import java.util.Objects;
 import javafx.scene.image.Image;
 import org.kordamp.ikonli.javafx.FontIcon;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignC;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignD;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignM;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignS;
-import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
+import org.kordamp.ikonli.materialdesign2.*;
 
 /**
  * https://kordamp.org/ikonli/cheat-sheet-materialdesign2.html
@@ -19,6 +15,8 @@ import org.kordamp.ikonli.materialdesign2.MaterialDesignT;
 public abstract class Icons {
 
   public static final FontIcon checkIcon = new FontIcon(MaterialDesignC.CHECK);
+  public static final FontIcon checkCircleIcon = new FontIcon(MaterialDesignC.CHECK_CIRCLE);
+  public static final FontIcon alterCircleIcon = new FontIcon(MaterialDesignA.ALERT_CIRCLE);
   public static final FontIcon deleteIcon = new FontIcon(MaterialDesignD.DELETE);
   public static final FontIcon serverIcon = new FontIcon(MaterialDesignS.SERVER);
   public static final FontIcon memoryIcon = new FontIcon(MaterialDesignM.MEMORY);

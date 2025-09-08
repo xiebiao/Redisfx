@@ -1,9 +1,12 @@
 package com.xiebiao.tools.redisfx.view;
 
 import atlantafx.base.theme.Styles;
+import atlantafx.base.util.Animations;
 import com.google.common.base.Strings;
+import com.xiebiao.tools.redisfx.utils.Icons;
 import com.xiebiao.tools.redisfx.utils.RedisfxStyles;
 import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -13,6 +16,8 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
+
+import static atlantafx.base.util.Animations.EASE;
 
 /**
  * @author Bill Xie
@@ -33,8 +38,11 @@ public class ToastView {
         label.getStyleClass().add(RedisfxStyles.TOAST_SUCCESS_CLASS);
         if (!isSuccess) {
             label.getStyleClass().add(RedisfxStyles.TOAST_FAILED_CLASS);
+            label.setGraphic(Icons.alterCircleIcon);
+        } else {
+            label.setGraphic(Icons.checkCircleIcon);
         }
-        label.setOpacity(0.9);
+        label.setOpacity(0.99);
         StackPane root = new StackPane(label);
         root.setAlignment(Pos.TOP_CENTER);
         Scene scene = new Scene(root);
@@ -45,12 +53,13 @@ public class ToastView {
         //Display at top center.
         double centerX = ownerStage.getX() + ownerStage.getWidth() / 2;
         double centerY = ownerStage.getY();
-        toastStage.setX(centerX - (double) message.length() / 2);
+        toastStage.setX(centerX - (double) message.length() / 2 - 20 * 2);
         toastStage.setY(centerY);
         toastStage.show();
-        Timeline timeline = new Timeline(new KeyFrame(
-                Duration.seconds(2),
-                ae -> toastStage.close()));
+        Timeline timeline = new Timeline(
+                new KeyFrame(
+                        Duration.seconds(1.6),
+                        ae -> toastStage.close()));
         timeline.play();
     }
 }
