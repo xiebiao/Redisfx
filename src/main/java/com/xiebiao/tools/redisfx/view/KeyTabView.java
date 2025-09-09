@@ -36,12 +36,12 @@ public class KeyTabView {
     private TextField key;
     private TextArea value;
     private Jedis jedis;
-    //    private Label tips;
     private Button saveButton;
     private Button deleteKeyButton;
     private ButtonBar bottomButtonBar;
     private String connectionName;
     private Spinner<Integer> ttlSpinner;
+    private Button updateTTL;
     private ComboBox<String> keyTypes;
 
     public KeyTabView(String connectionName, TabPane tabPane) {
@@ -104,6 +104,12 @@ public class KeyTabView {
                 keyTypes.getSelectionModel().select(keyType);
                 keyTypes.setDisable(true);
                 key.setText(selectedKey);
+                long ttl = jedis.ttl(selectedKey);
+                if (ttl > 0) {
+                    ttlSpinner.getValueFactory().setValue((int) ttl);
+                } else {
+                    ttlSpinner.getValueFactory().setValue(-1);
+                }
                 //TODO support other key types
                 String selectedKeyValue = jedis.get(selectedKey);
                 value.setText(selectedKeyValue);
@@ -200,15 +206,23 @@ public class KeyTabView {
     private void createTTL(Pane parent) {
         ttlSpinner = new Spinner<>();
         ttlSpinner.setEditable(true);
+        Tooltip ttlTooltip = new Tooltip("-1 means never expire(seconds)");
+        ttlSpinner.setTooltip(ttlTooltip);
         Label ttlLabel = new Label("TTL");
-        Tooltip ttlTooltip = new Tooltip("-1 means never expire");
-        ttlLabel.setTooltip(ttlTooltip);
-        Button update = new Button();
-
-        update.setGraphic(Icons.checkIcon);
-//        InputGroup ttlInputGroup = new InputGroup(ttlLabel, ttlSpinner, update);
+        updateTTL = new Button("Update TTL");
+        updateTTL.setGraphic(Icons.checkIcon);
+        updateTTL.setOnAction(event -> {
+            if (ttlSpinner.getValue() != -1) {
+                try {
+                    jedis.expire(key.getText(), ttlSpinner.getValue());
+                    ToastView.show(true, "Update TTL Success", (Stage) tabPane.getScene().getWindow());
+                } catch (Exception e) {
+                    ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+                }
+            }
+        });
         ttlSpinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(-1, Integer.MAX_VALUE));
-        parent.getChildren().addAll(ttlLabel, ttlSpinner, update);
+        parent.getChildren().addAll(ttlLabel, ttlSpinner, updateTTL);
     }
 
     private Button createDeleteButton() {
