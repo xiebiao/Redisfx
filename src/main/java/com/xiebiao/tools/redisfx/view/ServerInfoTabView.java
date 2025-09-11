@@ -73,7 +73,6 @@ public class ServerInfoTabView implements LifeCycle {
     private ScrollPane scrollPane;
     private VBox tabContents;
     private HBox cards;
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private RedisInfoProperty redisInfoProperty;
     private StackedBarChart chart;
     private XYChart.Series<String, Number> keys;
@@ -83,7 +82,7 @@ public class ServerInfoTabView implements LifeCycle {
     private FilteredList<DetailInfo> filteredData;
     private CustomTextField searchTextField;
     private volatile boolean autoRefreshPaused = false;
-
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     public ServerInfoTabView(String connectionName, TabPane tabPane) {
         this.connectionName = connectionName;
         this.tabPane = tabPane;
