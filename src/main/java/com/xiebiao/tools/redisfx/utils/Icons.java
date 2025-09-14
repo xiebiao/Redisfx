@@ -15,6 +15,7 @@ import org.kordamp.ikonli.materialdesign2.*;
 public abstract class Icons {
 
   public static final FontIcon checkIcon = new FontIcon(MaterialDesignC.CHECK);
+  public static final FontIcon deleteClockIcon = new FontIcon(MaterialDesignD.DELETE_CLOCK);
   public static final FontIcon checkCircleIcon = new FontIcon(MaterialDesignC.CHECK_CIRCLE);
   public static final FontIcon alterCircleIcon = new FontIcon(MaterialDesignA.ALERT_CIRCLE);
   public static final FontIcon deleteIcon = new FontIcon(MaterialDesignD.DELETE);

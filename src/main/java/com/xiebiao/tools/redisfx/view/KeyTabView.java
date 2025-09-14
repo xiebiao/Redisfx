@@ -245,10 +245,15 @@ public class KeyTabView {
     Label ttlLabel = new Label("TTL");
     Tooltip ttlTooltip = new Tooltip("-1 means never expire");
     ttlLabel.setTooltip(ttlTooltip);
+    Button deleteClock = new Button();
+    deleteClock.setGraphic(Icons.deleteClockIcon);
+    deleteClock.setOnAction(event -> {
+      jedis.persist(key.getText());
+      ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
+    });
     Button update = new Button();
-
     update.setGraphic(Icons.checkIcon);
-    InputGroup ttlInputGroup = new InputGroup(ttlLabel, ttlSpinner, update);
+    InputGroup ttlInputGroup = new InputGroup(ttlLabel, ttlSpinner, deleteClock, update);
     ttlSpinner.setValueFactory(
         new SpinnerValueFactory.IntegerSpinnerValueFactory(-1, Integer.MAX_VALUE));
     return ttlInputGroup;
@@ -260,8 +265,16 @@ public class KeyTabView {
     Tooltip ttlTooltip = new Tooltip("-1 means never expire(seconds)");
     ttlSpinner.setTooltip(ttlTooltip);
     Label ttlLabel = new Label("TTL");
-    updateTTL = new Button("Update TTL");
+    Button deleteClock = new Button();
+    deleteClock.setGraphic(Icons.deleteClockIcon);
+    deleteClock.setTooltip(new Tooltip("Delete TTL"));
+    deleteClock.setOnAction(event -> {
+      jedis.persist(key.getText());
+      ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
+    });
+    updateTTL = new Button();
     updateTTL.setGraphic(Icons.checkIcon);
+    updateTTL.setTooltip(new Tooltip("Update TTL"));
     updateTTL.setOnAction(event -> {
       if (ttlSpinner.getValue() != -1) {
         try {
@@ -274,11 +287,13 @@ public class KeyTabView {
     });
     ttlSpinner.setValueFactory(
         new SpinnerValueFactory.IntegerSpinnerValueFactory(-1, Integer.MAX_VALUE));
-    parent.getChildren().addAll(ttlLabel, ttlSpinner, updateTTL);
+    InputGroup actions = new InputGroup(deleteClock, updateTTL);
+    parent.getChildren().addAll(ttlLabel, ttlSpinner, actions);
   }
 
   private Button createDeleteButton() {
     Button deleteKeyButton = new Button();
+    deleteKeyButton.setTooltip(new Tooltip("Delete Key"));
     deleteKeyButton.setGraphic(Icons.deleteIcon);
     deleteKeyButton.setOnAction(event -> {
       if (key.getText() == null) {
