@@ -3,24 +3,20 @@ package com.xiebiao.tools.redisfx;
 import com.xiebiao.tools.redisfx.controller.MainController;
 import com.xiebiao.tools.redisfx.utils.Constants;
 import com.xiebiao.tools.redisfx.utils.Icons;
-import java.awt.Taskbar;
-import java.awt.Toolkit;
-import java.io.IOException;
-import java.net.URL;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
 import com.xiebiao.tools.redisfx.utils.RedisfxStyles;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.image.Image;
 import javafx.stage.Stage;
-import javax.swing.Icon;
+
+import java.awt.*;
+import java.io.IOException;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class RedisfxApplication extends Application {
 
@@ -48,6 +44,10 @@ public class RedisfxApplication extends Application {
         final Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
         var dockIcon = defaultToolkit.getImage(getClass().getResource(Constants.logoUri));
         taskbar.setIconImage(dockIcon);
+        PopupMenu popupMenu = new PopupMenu();
+        popupMenu.add(new MenuItem("Quit"));
+        taskbar.setMenu(popupMenu);
+
       }
     }
     stage.setScene(scene);

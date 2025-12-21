@@ -11,11 +11,13 @@
   <description>A redis GUI tool powered by JavaFX</description>
 
   <properties>
+    <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <junit.version>5.10.2</junit.version>
-    <javafx.version>24.0.1</javafx.version>
+    <javafx.version>22.0.2</javafx.version>
     <ikonli.version>12.4.0</ikonli.version>
-    <atlantafx.version>2.1.0</atlantafx.version>
+<!--    <atlantafx.version>2.1.0</atlantafx.version>-->
+    <atlantafx.version>2.0.1</atlantafx.version>
     <reactfx.version>1.4.1</reactfx.version>
     <jedis.version>5.0.0</jedis.version>
     <guava.version>32.1.1-jre</guava.version>
@@ -149,10 +151,11 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.13.0</version>
+        <version>3.14.1</version>
         <configuration>
-          <source>23</source>
-          <target>23</target>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <release>${java.version}</release>
         </configuration>
       </plugin>
 
@@ -213,6 +216,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-install-plugin</artifactId>
+        <version>3.1.1</version>
         <configuration>
           <!-- skip installation to the local repository -->
           <skip>true</skip>
@@ -221,6 +225,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
         <!-- copy application JAR file to the dependencies -->
         <configuration>
           <outputDirectory>${build.dependenciesDir}</outputDirectory>
