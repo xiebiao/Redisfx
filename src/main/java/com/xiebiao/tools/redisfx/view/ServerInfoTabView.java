@@ -69,7 +69,7 @@ public class ServerInfoTabView implements LifeCycle {
     private static final Logger logger = LoggerFactory.getLogger(ServerInfoTabView.class);
     private String connectionName;
     private TabPane tabPane;
-    private Jedis jedis;
+    private redis.clients.jedis.JedisPool jedisPool;
     private ScrollPane scrollPane;
     private VBox tabContents;
     private HBox cards;
@@ -128,12 +128,16 @@ public class ServerInfoTabView implements LifeCycle {
                         autoRefreshPaused = false;
                         scheduler.scheduleAtFixedRate(() -> {
                             if (!autoRefreshPaused) {
-                                Platform.runLater(() -> {
+                                try (var jedis = jedisPool.getResource()) {
                                     RedisInfo redisInfo = new RedisInfo(jedis.info());
-                                    redisInfoProperty.setRedisInfo(redisInfo);
-                                    createKeyspaceChart(redisInfo);
-                                    createDetailInfoTable(redisInfo);
-                                });
+                                    Platform.runLater(() -> {
+                                        redisInfoProperty.setRedisInfo(redisInfo);
+                                        createKeyspaceChart(redisInfo);
+                                        createDetailInfoTable(redisInfo);
+                                    });
+                                } catch (Exception e) {
+                                    logger.error("Auto refresh error", e);
+                                }
                             }
                         }, 0, 2, TimeUnit.SECONDS);
                     } else {
@@ -148,27 +152,29 @@ public class ServerInfoTabView implements LifeCycle {
     }
 
     private void show() {
-        String info = jedis.info();
-        RedisInfo redisInfo = new RedisInfo(info);
-        redisInfoProperty = new RedisInfoProperty(redisInfo);
-        cards = new HBox();
-        cards.setSpacing(Constants.spacing_20);
-        cards.getChildren().addAll(
-                createServerInfoCard(redisInfo),
-                createMemoryInfoCard(redisInfoProperty),
-                createStatsInfoCard(redisInfoProperty)
-        );
+        try (var jedis = jedisPool.getResource()) {
+            String info = jedis.info();
+            RedisInfo redisInfo = new RedisInfo(info);
+            redisInfoProperty = new RedisInfoProperty(redisInfo);
+            cards = new HBox();
+            cards.setSpacing(Constants.spacing_20);
+            cards.getChildren().addAll(
+                    createServerInfoCard(redisInfo),
+                    createMemoryInfoCard(redisInfoProperty),
+                    createStatsInfoCard(redisInfoProperty)
+            );
 
-        tabContents = new VBox();
-        tabContents.setAlignment(Pos.CENTER_RIGHT);
-        tabContents.setSpacing(Constants.spacing_20);
-        tabContents.getChildren().addAll(
-                createAutoRefreshToggle(),
-                cards,
-                createStatisticsInfo(redisInfo),
-                createDetailInfo(redisInfo)
-        );
-        scrollPane.setContent(tabContents);
+            tabContents = new VBox();
+            tabContents.setAlignment(Pos.CENTER_RIGHT);
+            tabContents.setSpacing(Constants.spacing_20);
+            tabContents.getChildren().addAll(
+                    createAutoRefreshToggle(),
+                    cards,
+                    createStatisticsInfo(redisInfo),
+                    createDetailInfo(redisInfo)
+            );
+            scrollPane.setContent(tabContents);
+        }
     }
 
     private TitledPane createStatisticsInfo(RedisInfo redisInfo) {
@@ -411,7 +417,7 @@ public class ServerInfoTabView implements LifeCycle {
     @Subscribe
     public void handleEventMessage(RedisfxEventMessasge eventMessasge) {
         if (eventMessasge.getEventType() == RedisfxEventType.CONNECTION_CONNECTED) {
-            this.jedis = (Jedis) eventMessasge.getData();
+            this.jedisPool = (redis.clients.jedis.JedisPool) eventMessasge.getData();
             Platform.runLater(() -> {
                 show();
             });

@@ -52,7 +52,8 @@ public class KeyTabView {
   private Tab keyTab;
   private TextField key;
   private TextArea value;
-  private Jedis jedis;
+  private redis.clients.jedis.JedisPool jedisPool;
+  private int selectedDatabase = 0;
   private Button saveButton;
   private Button deleteKeyButton;
   private ButtonBar bottomButtonBar;
@@ -79,8 +80,9 @@ public class KeyTabView {
     return keyTab;
   }
 
-  public void setJedis(Jedis jedis) {
-    this.jedis = jedis;
+  public void setJedisPool(redis.clients.jedis.JedisPool jedisPool, int database) {
+    this.jedisPool = jedisPool;
+    this.selectedDatabase = database;
   }
 
 
@@ -88,7 +90,7 @@ public class KeyTabView {
   public void handleEventMessage(RedisfxEventMessasge eventMessasge) {
     logger.debug("handleEventMessage:{}", eventMessasge);
     if (eventMessasge.getEventType() == RedisfxEventType.DATABASE_CHANGED) {
-      jedis = (Jedis) eventMessasge.getData();
+      jedisPool = (redis.clients.jedis.JedisPool) eventMessasge.getData();
     }
     if (eventMessasge.getEventType() == RedisfxEventType.NEW_KEY) {
       if (keyTab == null) {
@@ -120,7 +122,8 @@ public class KeyTabView {
         tabPane.getTabs().add(keyTab);
       }
       String selectedKey = (String) eventMessasge.getData();
-      try {
+      try (var jedis = jedisPool.getResource()) {
+        jedis.select(selectedDatabase);
         String keyType = jedis.type(selectedKey);
         keyTypes.getSelectionModel().select(keyType);
         keyTypes.setDisable(true);
@@ -192,7 +195,8 @@ public class KeyTabView {
       if (ttlSpinner.getValue() != -1) {
         setParams.ex(ttlSpinner.getValue());
       }
-      try {
+      try (var jedis = jedisPool.getResource()) {
+        jedis.select(selectedDatabase);
         String result = jedis.set(key.getText(), value.getText(), setParams);
         if (result.equals(Constants.SUCCESS)) {
           RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.NEW_KEY_CREATED));
@@ -221,11 +225,18 @@ public class KeyTabView {
             autoRefreshPaused = false;
             scheduler.scheduleAtFixedRate(() -> {
               if (!autoRefreshPaused) {
-                Platform.runLater(() -> {
-                  String key = this.key.getText();
-                  ttlSpinner.getValueFactory().setValue(Long.valueOf(jedis.ttl(key)).intValue());
-                  value.setText(jedis.get(key));
-                });
+                String keyText = this.key.getText();
+                try (var jedis = jedisPool.getResource()) {
+                  jedis.select(selectedDatabase);
+                  long ttl = jedis.ttl(keyText);
+                  String val = jedis.get(keyText);
+                  Platform.runLater(() -> {
+                    ttlSpinner.getValueFactory().setValue((int) ttl);
+                    value.setText(val);
+                  });
+                } catch (Exception e) {
+                  logger.error("Auto refresh error", e);
+                }
               }
             }, 0, 2, TimeUnit.SECONDS);
           } else {
@@ -239,26 +250,6 @@ public class KeyTabView {
 
   }
 
-  private InputGroup createTTL() {
-    ttlSpinner = new Spinner<>();
-    ttlSpinner.setEditable(true);
-    Label ttlLabel = new Label("TTL");
-    Tooltip ttlTooltip = new Tooltip("-1 means never expire");
-    ttlLabel.setTooltip(ttlTooltip);
-    Button deleteClock = new Button();
-    deleteClock.setGraphic(Icons.deleteClockIcon);
-    deleteClock.setOnAction(event -> {
-      jedis.persist(key.getText());
-      ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
-    });
-    Button update = new Button();
-    update.setGraphic(Icons.checkIcon);
-    InputGroup ttlInputGroup = new InputGroup(ttlLabel, ttlSpinner, deleteClock, update);
-    ttlSpinner.setValueFactory(
-        new SpinnerValueFactory.IntegerSpinnerValueFactory(-1, Integer.MAX_VALUE));
-    return ttlInputGroup;
-  }
-
   private void createTTL(Pane parent) {
     ttlSpinner = new Spinner<>();
     ttlSpinner.setEditable(true);
@@ -269,15 +260,21 @@ public class KeyTabView {
     deleteClock.setGraphic(Icons.deleteClockIcon);
     deleteClock.setTooltip(new Tooltip("Delete TTL"));
     deleteClock.setOnAction(event -> {
-      jedis.persist(key.getText());
-      ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
+      try (var jedis = jedisPool.getResource()) {
+        jedis.select(selectedDatabase);
+        jedis.persist(key.getText());
+        ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
+      } catch (Exception e) {
+        ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+      }
     });
     updateTTL = new Button();
     updateTTL.setGraphic(Icons.checkIcon);
     updateTTL.setTooltip(new Tooltip("Update TTL"));
     updateTTL.setOnAction(event -> {
       if (ttlSpinner.getValue() != -1) {
-        try {
+        try (var jedis = jedisPool.getResource()) {
+          jedis.select(selectedDatabase);
           jedis.expire(key.getText(), ttlSpinner.getValue());
           ToastView.show(true, "Update TTL Success", (Stage) tabPane.getScene().getWindow());
         } catch (Exception e) {
@@ -305,11 +302,17 @@ public class KeyTabView {
       alert.setContentText("This operation cannot be undone.");
       alert.showAndWait().ifPresent(result -> {
         if (result == ButtonType.OK) {
-          if (jedis.del(key.getText()) == Constants.DELETED_ONE_KEY_RESULT) {
-            RedisfxEventBusService.post(
-                new RedisfxEventMessasge(RedisfxEventType.KEY_DELETED, key.getText()));
-          } else {
-            logger.error("Redis del(key={}) Failed", key.getText());
+          try (var jedis = jedisPool.getResource()) {
+            jedis.select(selectedDatabase);
+            if (jedis.del(key.getText()) == Constants.DELETED_ONE_KEY_RESULT) {
+              RedisfxEventBusService.post(
+                  new RedisfxEventMessasge(RedisfxEventType.KEY_DELETED, key.getText()));
+            } else {
+              logger.error("Redis del(key={}) Failed", key.getText());
+            }
+          } catch (Exception e) {
+            logger.error("Redis del(key={}) error", key.getText(), e);
+            ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
           }
         }
       });

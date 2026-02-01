@@ -66,9 +66,8 @@ public class ConnectionInfoController implements Initializable {
                 event.consume();
                 return;
             }
-            try {
-                Jedis jedis = tryConnect();
-                jedis.close();
+            try (Jedis jedis = tryConnect()) {
+                // 连接测试成功
             } catch (Exception e) {
                 logger.error("Error connecting to Redis", e);
                 connectionError.setText(e.getMessage());

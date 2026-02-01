@@ -123,7 +123,7 @@ public class ConnectionTitledPane implements LifeCycle {
           serverInfoTab = serverInfoTabView.create();
         }
         RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.CONNECTION_CONNECTED,
-            jedisPool.getResource()));
+            jedisPool));
         tabPane.getTabs().add(serverInfoTab);
         tabPane.getSelectionModel().select(serverInfoTab);
         enableAllButton();
@@ -215,9 +215,8 @@ public class ConnectionTitledPane implements LifeCycle {
           .anyMatch(tab -> tab.getId().equals(Constants.keyInfoTabId));
       if (!isKeyInfoTabCreated) {
         keyInfoTab = keyTabView.create(Constants.NEW_KEY_TITLE);
-        var jedis = this.jedisPool.getResource();
-        jedis.select(databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex());
-        keyTabView.setJedis(jedis);
+        int selectedDb = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
+        keyTabView.setJedisPool(this.jedisPool, selectedDb);
       }
       RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.NEW_KEY));
     });
@@ -250,9 +249,8 @@ public class ConnectionTitledPane implements LifeCycle {
                   .anyMatch(tab -> tab.getId().equals(Constants.keyInfoTabId));
               if (!isKeyInfoTabCreated) {
                 keyInfoTab = keyTabView.create(Constants.NEW_KEY_TITLE);
-                var jedis = jedisPool.getResource();
-                jedis.select(databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex());
-                keyTabView.setJedis(jedis);
+                int selectedDb = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
+                keyTabView.setJedisPool(jedisPool, selectedDb);
               }
               RedisfxEventBusService.post(
                   new RedisfxEventMessasge(RedisfxEventType.KEY_SELECTED, newValue));
@@ -263,23 +261,24 @@ public class ConnectionTitledPane implements LifeCycle {
   }
 
   private void loadKeys(boolean loadMore) {
-    var jedis = jedisPool.getResource();
-    int index = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
-    jedis.select(index);
-    KeyPage keyPage = keyPageMap.getOrDefault(index, new KeyPage());
-    if (keyPage.isCompleteIteration()) {
-      return;
+    try (var jedis = jedisPool.getResource()) {
+      int index = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
+      jedis.select(index);
+      KeyPage keyPage = keyPageMap.getOrDefault(index, new KeyPage());
+      if (keyPage.isCompleteIteration()) {
+        return;
+      }
+      ScanResult<String> scanResult = jedis.scan(keyPage.getCursor(), keyPage.getScanParams());
+      List<String> keys = scanResult.getResult();
+      keyPage.setCompleteIteration(scanResult.isCompleteIteration());
+      keyPage.setCursor(scanResult.getCursor());
+      keyPageMap.put(index, keyPage);
+      if (!loadMore) {
+        this.keysListView.getItems().clear();
+      }
+      Collections.sort(keys);
+      this.keysListView.getItems().addAll(uniqKeys(keys));
     }
-    ScanResult<String> scanResult = jedis.scan(keyPage.getCursor(), keyPage.getScanParams());
-    List<String> keys = scanResult.getResult();
-    keyPage.setCompleteIteration(scanResult.isCompleteIteration());
-    keyPage.setCursor(scanResult.getCursor());
-    keyPageMap.put(index, keyPage);
-    if (!loadMore) {
-      this.keysListView.getItems().clear();
-    }
-    Collections.sort(keys);
-    this.keysListView.getItems().addAll(uniqKeys(keys));
   }
 
   private ObservableList<String> uniqKeys(List<String> keys) {
@@ -288,13 +287,15 @@ public class ConnectionTitledPane implements LifeCycle {
   }
 
   private void loadDatabases(ChoiceBox<RedisInfo.Keyspace> choiceBox) {
-    var jedis = this.jedisPool.getResource();
-    String redisInfoText = jedis.info();
-    RedisInfo redisInfo = new RedisInfo(redisInfoText);
-    choiceBox.getItems().clear();
-    choiceBox.getItems().addAll(redisInfo.getKeyspaces());
-    choiceBox.getSelectionModel().selectFirst();
-    RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.DATABASE_CHANGED, jedis));
+    try (var jedis = this.jedisPool.getResource()) {
+      String redisInfoText = jedis.info();
+      RedisInfo redisInfo = new RedisInfo(redisInfoText);
+      choiceBox.getItems().clear();
+      choiceBox.getItems().addAll(redisInfo.getKeyspaces());
+      choiceBox.getSelectionModel().selectFirst();
+    }
+    // 发送数据库切换事件，传递连接池引用而不是 Jedis 实例
+    RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.DATABASE_CHANGED, this.jedisPool));
   }
 
   @Subscribe
