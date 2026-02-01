@@ -1,170 +1,170 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
 
-## Project Overview
+## 项目概述
 
-Redisfx is a Redis GUI tool built with JavaFX 22, targeting JDK 21. It provides a graphical interface for managing Redis connections, viewing server information, and manipulating keys.
+Redisfx 是一个使用 JavaFX 22 构建的 Redis GUI 工具，目标平台为 JDK 21。它提供了管理 Redis 连接、查看服务器信息和操作键值的图形界面。
 
-**Technology Stack:**
+**技术栈：**
 - Java 21 with Java Modules (module-info.java)
-- JavaFX 22 for UI
-- AtlantaFX 2.0.1 for theming (PrimerLight/PrimerDark themes)
-- Jedis 5.0.0 for Redis client
-- Guava EventBus for internal event handling
-- SQLite for local data persistence
-- Maven for build management
+- JavaFX 22 用于 UI
+- AtlantaFX 2.0.1 用于主题 (PrimerLight/PrimerDark themes)
+- Jedis 5.0.0 用于 Redis 客户端
+- Guava EventBus 用于内部事件处理
+- SQLite 用于本地数据持久化
+- Maven 用于构建管理
 
-## Common Commands
+## 常用命令
 
-### Running the Application
+### 运行应用程序
 ```bash
-# Run in development mode
+# 开发模式运行
 mvn clean javafx:run
 
-# Compile the project
+# 编译项目
 mvn clean compile
 
-# Run tests
+# 运行测试
 mvn test
 
-# Package application (creates platform-specific installer)
+# 打包应用程序（创建平台特定的安装包）
 mvn clean install
 
-# Package for specific platform
+# 为特定平台打包
 mvn clean install -P mac    # macOS
 mvn clean install -P unix   # Linux
 mvn clean install -P win    # Windows
 ```
 
-### Development
+### 开发
 ```bash
-# Clean build artifacts
+# 清理构建产物
 mvn clean
 
-# Copy dependencies
+# 复制依赖
 mvn dependency:copy-dependencies
 
-# Create runtime image only
+# 仅创建运行时镜像
 mvn package
 ```
 
-## Architecture
+## 架构
 
-### Application Structure
+### 应用程序结构
 
-**Entry Point Flow:**
+**入口点流程：**
 1. `Launcher.main()` → `RedisfxApplication.main()` → `RedisfxApplication.start()`
-2. Main FXML loaded: `views/main-view.fxml` → `MainController`
-3. Application uses a modular architecture (defined in `module-info.java`)
+2. 主 FXML 加载：`views/main-view.fxml` → `MainController`
+3. 应用程序使用模块化架构（定义在 `module-info.java` 中）
 
-**Core Packages:**
-- `com.xiebiao.tools.redisfx` - Main application class, launcher
-- `com.xiebiao.tools.redisfx.controller` - FXML controllers (MainController, ConnectionInfoController)
-- `com.xiebiao.tools.redisfx.view` - Custom JavaFX views (ConnectionTitledPane, KeyTabView, ServerInfoTabView, ToastView, MemoryMonitorView, StatisticsView)
-- `com.xiebiao.tools.redisfx.model` - Data models (RedisConnectionInfo, RedisInfo, KeyPage, DetailInfo)
-- `com.xiebiao.tools.redisfx.service.eventbus` - Event bus implementation using Guava
-- `com.xiebiao.tools.redisfx.utils` - Utilities (Constants, Utils, Icons, RedisfxStyles, RedisCommand, RedisKeyTypes)
-- `com.xiebiao.tools.redisfx.core` - Core interfaces (LifeCycle)
+**核心包：**
+- `com.xiebiao.tools.redisfx` - 主应用程序类、启动器
+- `com.xiebiao.tools.redisfx.controller` - FXML 控制器（MainController, ConnectionInfoController）
+- `com.xiebiao.tools.redisfx.view` - 自定义 JavaFX 视图（ConnectionTitledPane, KeyTabView, ServerInfoTabView, ToastView, MemoryMonitorView, StatisticsView）
+- `com.xiebiao.tools.redisfx.model` - 数据模型（RedisConnectionInfo, RedisInfo, KeyPage, DetailInfo）
+- `com.xiebiao.tools.redisfx.service.eventbus` - 使用 Guava 的事件总线实现
+- `com.xiebiao.tools.redisfx.utils` - 工具类（Constants, Utils, Icons, RedisfxStyles, RedisCommand, RedisKeyTypes）
+- `com.xiebiao.tools.redisfx.core` - 核心接口（LifeCycle）
 
-### Event Bus Architecture
+### 事件总线架构
 
-The application uses a centralized event bus pattern via `RedisfxEventBusService` (wraps Guava EventBus):
-- Controllers/views publish events with `RedisfxEventBusService.post(RedisfxEventMessasge)`
-- Components register/unregister with `RedisfxEventBusService.register(this)` / `unregister(this)`
-- Use `@Subscribe` annotation on handler methods
-- Event types defined in `RedisfxEventType` enum
-- Example: `NEW_CONNECTION_CREATED` event triggers UI updates in MainController
+应用程序通过 `RedisfxEventBusService` 使用集中式事件总线模式（封装 Guava EventBus）：
+- 控制器/视图通过 `RedisfxEventBusService.post(RedisfxEventMessasge)` 发布事件
+- 组件通过 `RedisfxEventBusService.register(this)` / `unregister(this)` 注册/注销
+- 在处理方法上使用 `@Subscribe` 注解
+- 事件类型定义在 `RedisfxEventType` 枚举中
+- 示例：`NEW_CONNECTION_CREATED` 事件触发 MainController 中的 UI 更新
 
-### Threading Model
+### 线程模型
 
-- Main JavaFX application thread for UI operations
-- `RedisfxApplication.mainThreadPool` - ThreadPoolExecutor (5-10 threads) for background tasks
-- Use `Platform.runLater()` to update UI from background threads
-- Each connection has scheduled executors for auto-refresh features
+- 主 JavaFX 应用程序线程用于 UI 操作
+- `RedisfxApplication.mainThreadPool` - ThreadPoolExecutor（5-10 个线程）用于后台任务
+- 使用 `Platform.runLater()` 从后台线程更新 UI
+- 每个连接都有用于自动刷新功能的定时执行器
 
-### Connection Management
+### 连接管理
 
-**ConnectionTitledPane** is the core component for managing Redis connections:
-- Creates and manages JedisPool for each connection
-- Displays databases as tabs (ServerInfoTab, KeyInfoTab)
-- Handles database selection via ChoiceBox
-- Implements LifeCycle interface for cleanup
-- Key-value operations performed through KeyTabView
-- Server monitoring through ServerInfoTabView
+**ConnectionTitledPane** 是管理 Redis 连接的核心组件：
+- 为每个连接创建和管理 JedisPool
+- 将数据库显示为选项卡（ServerInfoTab, KeyInfoTab）
+- 通过 ChoiceBox 处理数据库选择
+- 实现 LifeCycle 接口进行清理
+- 通过 KeyTabView 执行键值操作
+- 通过 ServerInfoTabView 进行服务器监控
 
-### View Pattern
+### 视图模式
 
-Custom views extend JavaFX components and implement creation methods:
-- Views are composed programmatically (not FXML-based)
-- Most views have a `create()` method returning the component
-- Views subscribe to event bus for cross-component communication
-- Views implement LifeCycle interface when managing resources
+自定义视图扩展 JavaFX 组件并实现创建方法：
+- 视图以编程方式组合（非基于 FXML）
+- 大多数视图都有一个返回组件的 `create()` 方法
+- 视图订阅事件总线以进行跨组件通信
+- 视图在管理资源时实现 LifeCycle 接口
 
-### FXML Views
+### FXML 视图
 
-Limited FXML usage for main layouts:
-- `main-view.fxml` → MainController (main window with split pane)
-- `connectioninfo-view.fxml` → ConnectionInfoController (connection dialog)
-- `connection-view.fxml` (if exists)
+主布局使用有限的 FXML：
+- `main-view.fxml` → MainController（带分隔面板的主窗口）
+- `connectioninfo-view.fxml` → ConnectionInfoController（连接对话框）
+- `connection-view.fxml`（如果存在）
 
-## Key Implementation Patterns
+## 关键实现模式
 
-### Adding a New Redis Operation
-1. Add command constants to `RedisCommand` if needed
-2. Implement operation in KeyTabView or create new view
-3. Use JedisPool from ConnectionTitledPane
-4. Wrap Jedis operations in try-with-resources
-5. Post event via RedisfxEventBusService if other components need to react
-6. Update UI on Platform.runLater() if called from background thread
+### 添加新的 Redis 操作
+1. 如果需要，向 `RedisCommand` 添加命令常量
+2. 在 KeyTabView 中实现操作或创建新视图
+3. 使用来自 ConnectionTitledPane 的 JedisPool
+4. 将 Jedis 操作包装在 try-with-resources 中
+5. 如果其他组件需要响应，通过 RedisfxEventBusService 发布事件
+6. 如果从后台线程调用，在 Platform.runLater() 上更新 UI
 
-### Creating a New View
-1. Create class in `com.xiebiao.tools.redisfx.view` package
-2. Implement LifeCycle if managing resources
-3. Add `create()` method returning JavaFX node
-4. Register with event bus if needed: `RedisfxEventBusService.register(this)`
-5. Clean up in destroy(): unregister from event bus, close resources
-6. Export package in module-info.java if needed
+### 创建新视图
+1. 在 `com.xiebiao.tools.redisfx.view` 包中创建类
+2. 如果管理资源，实现 LifeCycle
+3. 添加返回 JavaFX 节点的 `create()` 方法
+4. 如果需要，注册到事件总线：`RedisfxEventBusService.register(this)`
+5. 在 destroy() 中清理：从事件总线注销、关闭资源
+6. 如果需要，在 module-info.java 中导出包
 
-### Theme Support
-- Application uses AtlantaFX themes (PrimerLight, PrimerDark, Primitive)
-- Theme switching handled in MainController via menu items
-- Custom styles defined in RedisfxStyles
-- Use AtlantaFX style classes (Styles.BUTTON_*) for consistent theming
+### 主题支持
+- 应用程序使用 AtlantaFX 主题（PrimerLight, PrimerDark, Primitive）
+- 主题切换在 MainController 中通过菜单项处理
+- 自定义样式定义在 RedisfxStyles 中
+- 使用 AtlantaFX 样式类（Styles.BUTTON_*）以保持主题一致
 
-### Resource Management
-- Components implementing LifeCycle must clean up in destroy()
-- MainController.destroy() cascades to all ConnectionTitledPane instances
-- JedisPools must be closed on connection removal
-- EventBus listeners must be unregistered
+### 资源管理
+- 实现 LifeCycle 的组件必须在 destroy() 中清理
+- MainController.destroy() 级联到所有 ConnectionTitledPane 实例
+- JedisPool 必须在删除连接时关闭
+- EventBus 监听器必须取消注册
 
-## Build Configuration
+## 构建配置
 
-The Maven build uses jlink and jpackage to create self-contained applications:
-- **jlink** creates custom JRE with only required modules
-- **jpackage** bundles application with JRE into platform-specific package
-- Dependencies copied to `target/dependencies`
-- JavaFX modules handled separately in `target/platform-modules`
-- Icons in multiple formats for different platforms (icns, ico, png)
+Maven 构建使用 jlink 和 jpackage 创建自包含应用程序：
+- **jlink** 创建仅包含所需模块的自定义 JRE
+- **jpackage** 将应用程序与 JRE 打包成平台特定的包
+- 依赖项复制到 `target/dependencies`
+- JavaFX 模块单独处理在 `target/platform-modules` 中
+- 不同平台的多种格式图标（icns, ico, png）
 
-**Build Output:**
-- `target/runtime-image` - Custom JRE
-- `target/app-image` - Self-contained application
-- `target/dependencies` - All JAR dependencies
+**构建输出：**
+- `target/runtime-image` - 自定义 JRE
+- `target/app-image` - 自包含应用程序
+- `target/dependencies` - 所有 JAR 依赖项
 
-## Module System
+## 模块系统
 
-Application uses Java Platform Module System (JPMS):
-- Module name: `com.xiebiao.tools.redisfx`
-- Main class: `com.xiebiao.tools.redisfx.Launcher`
-- All packages explicitly exported in module-info.java
-- Controllers opened to javafx.fxml for reflection access
-- Native access enabled for JavaFX in JVM options
+应用程序使用 Java 平台模块系统（JPMS）：
+- 模块名称：`com.xiebiao.tools.redisfx`
+- 主类：`com.xiebiao.tools.redisfx.Launcher`
+- 所有包在 module-info.java 中显式导出
+- 控制器向 javafx.fxml 开放以进行反射访问
+- JVM 选项中为 JavaFX 启用本机访问
 
-## Development Notes
+## 开发说明
 
-- Dev mode activated via `-Dredisfx.mode=dev` system property (set in Maven plugin)
-- Locale hardcoded to en_US (i18n TODO noted in code)
-- Application maximized on startup
-- Tab pane dynamically sized (commented code for fixed-width tabs)
-- Uses SplitPane with divider at 0.195 for left sidebar
+- 开发模式通过 `-Dredisfx.mode=dev` 系统属性激活（在 Maven 插件中设置）
+- 语言环境硬编码为 en_US（代码中已标注 i18n TODO）
+- 应用程序启动时最大化
+- 选项卡面板动态调整大小（固定宽度选项卡的代码已注释）
+- 使用 SplitPane，左侧边栏分隔符位于 0.195
