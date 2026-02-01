@@ -152,29 +152,38 @@ public class ServerInfoTabView implements LifeCycle {
     }
 
     private void show() {
-        try (var jedis = jedisPool.getResource()) {
-            String info = jedis.info();
-            RedisInfo redisInfo = new RedisInfo(info);
-            redisInfoProperty = new RedisInfoProperty(redisInfo);
-            cards = new HBox();
-            cards.setSpacing(Constants.spacing_20);
-            cards.getChildren().addAll(
-                    createServerInfoCard(redisInfo),
-                    createMemoryInfoCard(redisInfoProperty),
-                    createStatsInfoCard(redisInfoProperty)
-            );
+        // 在后台线程执行 Redis 操作
+        com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool.execute(() -> {
+            try (var jedis = jedisPool.getResource()) {
+                String info = jedis.info();
+                RedisInfo redisInfo = new RedisInfo(info);
 
-            tabContents = new VBox();
-            tabContents.setAlignment(Pos.CENTER_RIGHT);
-            tabContents.setSpacing(Constants.spacing_20);
-            tabContents.getChildren().addAll(
-                    createAutoRefreshToggle(),
-                    cards,
-                    createStatisticsInfo(redisInfo),
-                    createDetailInfo(redisInfo)
-            );
-            scrollPane.setContent(tabContents);
-        }
+                // 在 UI 线程更新界面
+                Platform.runLater(() -> {
+                    redisInfoProperty = new RedisInfoProperty(redisInfo);
+                    cards = new HBox();
+                    cards.setSpacing(Constants.spacing_20);
+                    cards.getChildren().addAll(
+                            createServerInfoCard(redisInfo),
+                            createMemoryInfoCard(redisInfoProperty),
+                            createStatsInfoCard(redisInfoProperty)
+                    );
+
+                    tabContents = new VBox();
+                    tabContents.setAlignment(Pos.CENTER_RIGHT);
+                    tabContents.setSpacing(Constants.spacing_20);
+                    tabContents.getChildren().addAll(
+                            createAutoRefreshToggle(),
+                            cards,
+                            createStatisticsInfo(redisInfo),
+                            createDetailInfo(redisInfo)
+                    );
+                    scrollPane.setContent(tabContents);
+                });
+            } catch (Exception e) {
+                logger.error("Show server info error", e);
+            }
+        });
     }
 
     private TitledPane createStatisticsInfo(RedisInfo redisInfo) {
@@ -418,9 +427,8 @@ public class ServerInfoTabView implements LifeCycle {
     public void handleEventMessage(RedisfxEventMessasge eventMessasge) {
         if (eventMessasge.getEventType() == RedisfxEventType.CONNECTION_CONNECTED) {
             this.jedisPool = (redis.clients.jedis.JedisPool) eventMessasge.getData();
-            Platform.runLater(() -> {
-                show();
-            });
+            // show() 方法本身已经在后台线程执行 Redis 操作，直接调用即可
+            show();
         }
     }
 

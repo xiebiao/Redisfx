@@ -122,26 +122,35 @@ public class KeyTabView {
         tabPane.getTabs().add(keyTab);
       }
       String selectedKey = (String) eventMessasge.getData();
-      try (var jedis = jedisPool.getResource()) {
-        jedis.select(selectedDatabase);
-        String keyType = jedis.type(selectedKey);
-        keyTypes.getSelectionModel().select(keyType);
-        keyTypes.setDisable(true);
-        key.setText(selectedKey);
-        long ttl = jedis.ttl(selectedKey);
-        if (ttl > 0) {
-          ttlSpinner.getValueFactory().setValue((int) ttl);
-        } else {
-          ttlSpinner.getValueFactory().setValue(-1);
+
+      // 在后台线程执行 Redis 操作
+      com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool.execute(() -> {
+        try (var jedis = jedisPool.getResource()) {
+          jedis.select(selectedDatabase);
+          String keyType = jedis.type(selectedKey);
+          long ttl = jedis.ttl(selectedKey);
+          //TODO support other key types
+          String selectedKeyValue = jedis.get(selectedKey);
+
+          // 在 UI 线程更新界面
+          Platform.runLater(() -> {
+            keyTypes.getSelectionModel().select(keyType);
+            keyTypes.setDisable(true);
+            key.setText(selectedKey);
+            if (ttl > 0) {
+              ttlSpinner.getValueFactory().setValue((int) ttl);
+            } else {
+              ttlSpinner.getValueFactory().setValue(-1);
+            }
+            value.setText(selectedKeyValue);
+            tabPane.getSelectionModel().select(keyTab);
+          });
+        } catch (Exception e) {
+          Platform.runLater(() -> {
+            ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+          });
         }
-        //TODO support other key types
-        String selectedKeyValue = jedis.get(selectedKey);
-        value.setText(selectedKeyValue);
-      } catch (Exception e) {
-        ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
-        return;
-      }
-      tabPane.getSelectionModel().select(keyTab);
+      });
     }
 
   }
@@ -191,23 +200,38 @@ public class KeyTabView {
         return;
       }
       saveButton.setDisable(true);
-      SetParams setParams = new SetParams();
-      if (ttlSpinner.getValue() != -1) {
-        setParams.ex(ttlSpinner.getValue());
-      }
-      try (var jedis = jedisPool.getResource()) {
-        jedis.select(selectedDatabase);
-        String result = jedis.set(key.getText(), value.getText(), setParams);
-        if (result.equals(Constants.SUCCESS)) {
-          RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.NEW_KEY_CREATED));
-          ToastView.show(true, "Save Success", (Stage) tabPane.getScene().getWindow());
-          saveButton.pseudoClassStateChanged(Styles.STATE_SUCCESS, true);
-          logger.debug("Redis set(key={}) Success", key.getText());
+
+      // 在后台线程执行 Redis 操作
+      String keyText = key.getText();
+      String valueText = value.getText();
+      int ttl = ttlSpinner.getValue();
+
+      com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool.execute(() -> {
+        SetParams setParams = new SetParams();
+        if (ttl != -1) {
+          setParams.ex(ttl);
         }
-      } catch (Exception e) {
-        ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
-      }
-      saveButton.setDisable(false);
+        try (var jedis = jedisPool.getResource()) {
+          jedis.select(selectedDatabase);
+          String result = jedis.set(keyText, valueText, setParams);
+
+          // 在 UI 线程更新界面
+          Platform.runLater(() -> {
+            if (result.equals(Constants.SUCCESS)) {
+              RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.NEW_KEY_CREATED));
+              ToastView.show(true, "Save Success", (Stage) tabPane.getScene().getWindow());
+              saveButton.pseudoClassStateChanged(Styles.STATE_SUCCESS, true);
+              logger.debug("Redis set(key={}) Success", keyText);
+            }
+            saveButton.setDisable(false);
+          });
+        } catch (Exception e) {
+          Platform.runLater(() -> {
+            ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+            saveButton.setDisable(false);
+          });
+        }
+      });
     });
     bottomButtonBar.getButtons().addAll(saveButton);
     vBox.getChildren().addAll(flowPane, value, bottomButtonBar);
@@ -260,26 +284,43 @@ public class KeyTabView {
     deleteClock.setGraphic(Icons.deleteClockIcon);
     deleteClock.setTooltip(new Tooltip("Delete TTL"));
     deleteClock.setOnAction(event -> {
-      try (var jedis = jedisPool.getResource()) {
-        jedis.select(selectedDatabase);
-        jedis.persist(key.getText());
-        ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
-      } catch (Exception e) {
-        ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
-      }
+      String keyText = key.getText();
+      // 在后台线程执行 Redis 操作
+      com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool.execute(() -> {
+        try (var jedis = jedisPool.getResource()) {
+          jedis.select(selectedDatabase);
+          jedis.persist(keyText);
+          Platform.runLater(() -> {
+            ToastView.show(true, "Delete TTL Success", (Stage) tabPane.getScene().getWindow());
+          });
+        } catch (Exception e) {
+          Platform.runLater(() -> {
+            ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+          });
+        }
+      });
     });
     updateTTL = new Button();
     updateTTL.setGraphic(Icons.checkIcon);
     updateTTL.setTooltip(new Tooltip("Update TTL"));
     updateTTL.setOnAction(event -> {
       if (ttlSpinner.getValue() != -1) {
-        try (var jedis = jedisPool.getResource()) {
-          jedis.select(selectedDatabase);
-          jedis.expire(key.getText(), ttlSpinner.getValue());
-          ToastView.show(true, "Update TTL Success", (Stage) tabPane.getScene().getWindow());
-        } catch (Exception e) {
-          ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
-        }
+        String keyText = key.getText();
+        int ttl = ttlSpinner.getValue();
+        // 在后台线程执行 Redis 操作
+        com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool.execute(() -> {
+          try (var jedis = jedisPool.getResource()) {
+            jedis.select(selectedDatabase);
+            jedis.expire(keyText, ttl);
+            Platform.runLater(() -> {
+              ToastView.show(true, "Update TTL Success", (Stage) tabPane.getScene().getWindow());
+            });
+          } catch (Exception e) {
+            Platform.runLater(() -> {
+              ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+            });
+          }
+        });
       }
     });
     ttlSpinner.setValueFactory(
@@ -302,18 +343,27 @@ public class KeyTabView {
       alert.setContentText("This operation cannot be undone.");
       alert.showAndWait().ifPresent(result -> {
         if (result == ButtonType.OK) {
-          try (var jedis = jedisPool.getResource()) {
-            jedis.select(selectedDatabase);
-            if (jedis.del(key.getText()) == Constants.DELETED_ONE_KEY_RESULT) {
-              RedisfxEventBusService.post(
-                  new RedisfxEventMessasge(RedisfxEventType.KEY_DELETED, key.getText()));
-            } else {
-              logger.error("Redis del(key={}) Failed", key.getText());
+          String keyText = key.getText();
+          // 在后台线程执行 Redis 操作
+          com.xiebiao.tools.redisfx.RedisfxApplication.mainThreadPool.execute(() -> {
+            try (var jedis = jedisPool.getResource()) {
+              jedis.select(selectedDatabase);
+              long deleteResult = jedis.del(keyText);
+              Platform.runLater(() -> {
+                if (deleteResult == Constants.DELETED_ONE_KEY_RESULT) {
+                  RedisfxEventBusService.post(
+                      new RedisfxEventMessasge(RedisfxEventType.KEY_DELETED, keyText));
+                } else {
+                  logger.error("Redis del(key={}) Failed", keyText);
+                }
+              });
+            } catch (Exception e) {
+              logger.error("Redis del(key={}) error", keyText, e);
+              Platform.runLater(() -> {
+                ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
+              });
             }
-          } catch (Exception e) {
-            logger.error("Redis del(key={}) error", key.getText(), e);
-            ToastView.show(false, e.getMessage(), (Stage) tabPane.getScene().getWindow());
-          }
+          });
         }
       });
     });

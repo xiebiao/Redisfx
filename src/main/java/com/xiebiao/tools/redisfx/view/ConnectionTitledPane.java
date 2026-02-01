@@ -18,6 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -36,6 +37,7 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.JedisClientConfig;
@@ -261,24 +263,41 @@ public class ConnectionTitledPane implements LifeCycle {
   }
 
   private void loadKeys(boolean loadMore) {
-    try (var jedis = jedisPool.getResource()) {
-      int index = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
-      jedis.select(index);
-      KeyPage keyPage = keyPageMap.getOrDefault(index, new KeyPage());
-      if (keyPage.isCompleteIteration()) {
-        return;
-      }
-      ScanResult<String> scanResult = jedis.scan(keyPage.getCursor(), keyPage.getScanParams());
-      List<String> keys = scanResult.getResult();
-      keyPage.setCompleteIteration(scanResult.isCompleteIteration());
-      keyPage.setCursor(scanResult.getCursor());
-      keyPageMap.put(index, keyPage);
-      if (!loadMore) {
-        this.keysListView.getItems().clear();
-      }
-      Collections.sort(keys);
-      this.keysListView.getItems().addAll(uniqKeys(keys));
+    int index = databaseChoiceBox.getSelectionModel().getSelectedItem().getIndex();
+    KeyPage keyPage = keyPageMap.getOrDefault(index, new KeyPage());
+    if (keyPage.isCompleteIteration()) {
+      return;
     }
+
+    // 在后台线程执行 Redis 操作
+    RedisfxApplication.mainThreadPool.execute(() -> {
+      try (var jedis = jedisPool.getResource()) {
+        jedis.select(index);
+        ScanResult<String> scanResult = jedis.scan(keyPage.getCursor(), keyPage.getScanParams());
+        List<String> keys = scanResult.getResult();
+        keyPage.setCompleteIteration(scanResult.isCompleteIteration());
+        keyPage.setCursor(scanResult.getCursor());
+        keyPageMap.put(index, keyPage);
+
+        // 在后台线程排序
+        Collections.sort(keys);
+        ObservableList<String> uniqueKeys = uniqKeys(keys);
+
+        // 在 UI 线程更新界面
+        Platform.runLater(() -> {
+          if (!loadMore) {
+            this.keysListView.getItems().clear();
+          }
+          this.keysListView.getItems().addAll(uniqueKeys);
+        });
+      } catch (Exception e) {
+        logger.error("Load keys error", e);
+        Platform.runLater(() -> {
+          ToastView.show(false, "Load keys error: " + e.getMessage(),
+              (Stage) connectionTitledPane.getScene().getWindow());
+        });
+      }
+    });
   }
 
   private ObservableList<String> uniqKeys(List<String> keys) {
@@ -287,15 +306,28 @@ public class ConnectionTitledPane implements LifeCycle {
   }
 
   private void loadDatabases(ChoiceBox<RedisInfo.Keyspace> choiceBox) {
-    try (var jedis = this.jedisPool.getResource()) {
-      String redisInfoText = jedis.info();
-      RedisInfo redisInfo = new RedisInfo(redisInfoText);
-      choiceBox.getItems().clear();
-      choiceBox.getItems().addAll(redisInfo.getKeyspaces());
-      choiceBox.getSelectionModel().selectFirst();
-    }
-    // 发送数据库切换事件，传递连接池引用而不是 Jedis 实例
-    RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.DATABASE_CHANGED, this.jedisPool));
+    // 在后台线程执行 Redis 操作
+    RedisfxApplication.mainThreadPool.execute(() -> {
+      try (var jedis = this.jedisPool.getResource()) {
+        String redisInfoText = jedis.info();
+        RedisInfo redisInfo = new RedisInfo(redisInfoText);
+
+        // 在 UI 线程更新界面
+        Platform.runLater(() -> {
+          choiceBox.getItems().clear();
+          choiceBox.getItems().addAll(redisInfo.getKeyspaces());
+          choiceBox.getSelectionModel().selectFirst();
+          // 发送数据库切换事件，传递连接池引用而不是 Jedis 实例
+          RedisfxEventBusService.post(new RedisfxEventMessasge(RedisfxEventType.DATABASE_CHANGED, this.jedisPool));
+        });
+      } catch (Exception e) {
+        logger.error("Load databases error", e);
+        Platform.runLater(() -> {
+          ToastView.show(false, "Load databases error: " + e.getMessage(),
+              (Stage) connectionTitledPane.getScene().getWindow());
+        });
+      }
+    });
   }
 
   @Subscribe
